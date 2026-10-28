@@ -24,3 +24,4 @@ class CreateRoleRequest extends FormRequest
         ];
     }
 }
+

@@ -19,3 +19,4 @@ class AssignUserPermissionsRequest extends FormRequest
         ];
     }
 }
+

@@ -23,3 +23,4 @@ class CreatePermissionRequest extends FormRequest
         ];
     }
 }
+
