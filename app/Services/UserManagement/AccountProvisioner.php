@@ -4,6 +4,7 @@ namespace App\Services\UserManagement;
 
 use App\Enums\AccountStatus;
 use App\Enums\SupportedLocale;
+use App\Models\Permission;
 use App\Models\User;
 use App\Repositories\IdSequenceRepository;
 use App\Repositories\RolePermissionRepository;
@@ -49,6 +50,19 @@ class AccountProvisioner
                 'assigned_by' => $actor?->id,
                 'created_at' => now(),
             ]);
+
+            // Assign manual direct permission flags if supplied
+            if (! empty($data['permissions'])) {
+                $permissionIds = Permission::whereIn('key', $data['permissions'])->pluck('id');
+                $syncData = [];
+                foreach ($permissionIds as $permId) {
+                    $syncData[$permId] = [
+                        'granted_by' => $actor?->id,
+                        'created_at' => now(),
+                    ];
+                }
+                $user->permissionGrants()->sync($syncData);
+            }
 
             // Generate one-time invitation token
             $invitationData = $this->invitationService->generateToken($user->id, $actor?->id);

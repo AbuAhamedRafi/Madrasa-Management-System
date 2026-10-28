@@ -19,7 +19,9 @@ class CreateUserRequest extends FormRequest
             'username' => ['required', 'string', 'min:3', 'max:50', 'regex:/^[a-zA-Z0-9._-]+$/', 'unique:users,username'],
             'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:25'],
-            'role' => ['required', 'string', 'in:ADMIN,OFFICE_STAFF,ACCOUNTS'],
+            'role' => ['required', 'string', 'exists:roles,key'],
+            'permissions' => ['nullable', 'array'],
+            'permissions.*' => ['string', 'exists:permissions,key'],
         ];
     }
 }

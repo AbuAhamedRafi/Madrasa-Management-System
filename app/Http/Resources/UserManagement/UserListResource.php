@@ -21,6 +21,8 @@ class UserListResource extends JsonResource
             'phone' => $this->phone,
             'role' => $this->roles->first()?->key ?? 'OFFICE_STAFF',
             'roles' => $this->roles->pluck('key')->values()->all(),
+            'permissions' => $this->allPermissions(),
+            'direct_permissions' => $this->permissionGrants->pluck('key')->values()->all(),
             'status' => $this->status->value,
             'preferred_locale' => $this->preferred_locale->value,
             'last_login_at' => $this->last_login_at?->toIso8601String(),

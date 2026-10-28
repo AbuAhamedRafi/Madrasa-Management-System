@@ -28,9 +28,12 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
         Route::patch('/users/{id}', [UserController::class, 'update'])->middleware('permission:users.update');
         Route::patch('/users/{id}/status', [UserController::class, 'updateStatus'])->middleware('permission:users.disable');
         Route::put('/users/{id}/roles', [UserController::class, 'assignRoles'])->middleware('permission:users.assign_role');
+        Route::put('/users/{id}/permissions', [UserController::class, 'assignPermissions'])->middleware('permission:users.assign_role');
         Route::post('/users/{id}/invitations', [UserController::class, 'reissueInvitation'])->middleware('permission:users.update');
 
         Route::get('/roles', [RolePermissionController::class, 'roles'])->middleware('permission:roles.read');
+        Route::post('/roles', [RolePermissionController::class, 'storeRole'])->middleware('permission:roles.read');
         Route::get('/permissions', [RolePermissionController::class, 'permissions'])->middleware('permission:roles.read');
+        Route::post('/permissions', [RolePermissionController::class, 'storePermission'])->middleware('permission:roles.read');
     });
 });

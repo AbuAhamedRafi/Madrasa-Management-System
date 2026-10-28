@@ -4,11 +4,13 @@ namespace App\Http\Controllers\UserManagement;
 
 use App\Enums\AccountStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\UserManagement\AssignUserPermissionsRequest;
 use App\Http\Requests\UserManagement\AssignUserRolesRequest;
 use App\Http\Requests\UserManagement\CreateUserRequest;
 use App\Http\Requests\UserManagement\UpdateUserRequest;
 use App\Http\Requests\UserManagement\UpdateUserStatusRequest;
 use App\Http\Resources\UserManagement\UserListResource;
+use App\Models\Permission;
 use App\Repositories\UserRepository;
 use App\Services\Authentication\InvitationService;
 use App\Services\UserManagement\AccountProvisioner;
@@ -145,6 +147,35 @@ class UserController extends Controller
 
         return response()->json([
             'data' => new UserListResource($updated),
+        ]);
+    }
+
+    public function assignPermissions(AssignUserPermissionsRequest $request, string $id): JsonResponse
+    {
+        $user = $this->userRepository->findByPublicId($id);
+        if (! $user && is_numeric($id)) {
+            $user = $this->userRepository->findById((int) $id);
+        }
+
+        if (! $user) {
+            abort(404, 'User not found');
+        }
+
+        $permissionKeys = $request->input('permissions', []);
+        $permissionIds = Permission::whereIn('key', $permissionKeys)->pluck('id');
+
+        $syncData = [];
+        foreach ($permissionIds as $permId) {
+            $syncData[$permId] = [
+                'granted_by' => $request->user()->id,
+                'created_at' => now(),
+            ];
+        }
+
+        $user->permissionGrants()->sync($syncData);
+
+        return response()->json([
+            'data' => new UserListResource($user->fresh(['roles', 'permissionGrants'])),
         ]);
     }
 

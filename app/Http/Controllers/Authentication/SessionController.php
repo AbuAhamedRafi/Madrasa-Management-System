@@ -93,9 +93,13 @@ class SessionController extends Controller
             $request->attributes->get('request_id')
         );
 
-        return response()->json([
-            'data' => (new CurrentUserResource($user))->toArray($request),
-        ]);
+        if ($request->is('api/*')) {
+            return response()->json([
+                'data' => (new CurrentUserResource($user))->toArray($request),
+            ]);
+        }
+
+        return response()->noContent();
     }
 
     public function logout(Request $request): Response
