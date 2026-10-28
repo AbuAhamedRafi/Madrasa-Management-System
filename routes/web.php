@@ -11,4 +11,6 @@ Route::get('/', function () {
 Route::middleware('web')->group(function () {
     Route::post('/login', [SessionController::class, 'login']);
     Route::post('/logout', [SessionController::class, 'logout']);
+    Route::post('/api/v1/auth/login', [SessionController::class, 'login']);
+    Route::post('/api/v1/auth/logout', [SessionController::class, 'logout']);
 });
