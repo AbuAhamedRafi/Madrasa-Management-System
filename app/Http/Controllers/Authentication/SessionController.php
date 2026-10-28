@@ -93,7 +93,9 @@ class SessionController extends Controller
             $request->attributes->get('request_id')
         );
 
-        return response()->noContent();
+        return response()->json([
+            'data' => (new CurrentUserResource($user))->toArray($request),
+        ]);
     }
 
     public function logout(Request $request): Response
