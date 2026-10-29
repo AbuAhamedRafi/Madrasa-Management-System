@@ -62,13 +62,21 @@ class RolePermissionSeeder extends Seeder
             ['key' => 'permissions.manage', 'module' => 'D01_Roles', 'label_bn' => 'কাস্টম পারমিশন তৈরি', 'label_en' => 'Create custom permission flags', 'display_order' => 11],
             ['key' => 'audits.read', 'module' => 'D01_Audit', 'label_bn' => 'অডিট লগ পরিদর্শন', 'label_en' => 'View system audit logs', 'display_order' => 12],
 
-            // D02: Academics
-            ['key' => 'academics.programs.read', 'module' => 'D02_Academics', 'label_bn' => 'একাডেমিক বিভাগ ও কারিকুলাম দেখা', 'label_en' => 'View academic programs', 'display_order' => 13],
-            ['key' => 'academics.programs.manage', 'module' => 'D02_Academics', 'label_bn' => 'একাডেমিক বিভাগ পরিচালনা', 'label_en' => 'Manage academic programs', 'display_order' => 14],
-            ['key' => 'academics.sessions.manage', 'module' => 'D02_Academics', 'label_bn' => 'শিক্ষাবর্ষ সেশন কনফিগারেশন', 'label_en' => 'Configure academic sessions', 'display_order' => 15],
-            ['key' => 'academics.classes.manage', 'module' => 'D02_Academics', 'label_bn' => 'শ্রেণী ও সেকশন ব্যবস্থাপনা', 'label_en' => 'Manage classes & sections', 'display_order' => 16],
-            ['key' => 'academics.subjects.manage', 'module' => 'D02_Academics', 'label_bn' => 'বিষয় ও সিলেবাস নির্ধারণ', 'label_en' => 'Manage subjects & syllabi', 'display_order' => 17],
-            ['key' => 'academics.manage', 'module' => 'D02_Academics', 'label_bn' => 'সার্বিক একাডেমিক ব্যবস্থাপনা', 'label_en' => 'Master academic management', 'display_order' => 18],
+            // D02: Institution & Academics (Canonical D02 contract keys + granular flags)
+            ['key' => 'institution.read', 'module' => 'D02_Institution', 'label_bn' => 'প্রতিষ্ঠানের তথ্য দেখা', 'label_en' => 'Read institution profile & branding', 'display_order' => 13],
+            ['key' => 'institution.update', 'module' => 'D02_Institution', 'label_bn' => 'প্রতিষ্ঠানের তথ্য ও লোগো আপডেট', 'label_en' => 'Update institution profile & logo', 'display_order' => 14],
+            ['key' => 'academics.read', 'module' => 'D02_Academics', 'label_bn' => 'একাডেমিক কাঠামো ও শিক্ষাকাল দেখা', 'label_en' => 'Read academic structure, periods & offerings', 'display_order' => 15],
+            ['key' => 'academics.manage_structure', 'module' => 'D02_Academics', 'label_bn' => 'কর্তৃপক্ষ, বিভাগ, প্রোগ্রাম ও শ্রেণি পরিচালনা', 'label_en' => 'Manage authorities, levels, departments, programs & classes', 'display_order' => 16],
+            ['key' => 'academics.manage_cohorts', 'module' => 'D02_Academics', 'label_bn' => 'ভর্তি সেশন (কোহর্ট) পরিচালনা', 'label_en' => 'Manage session-based admission cohorts', 'display_order' => 17],
+            ['key' => 'academics.manage_periods', 'module' => 'D02_Academics', 'label_bn' => 'একাডেমিক সময়কাল তৈরি ও সম্পাদনা', 'label_en' => 'Create and edit academic periods', 'display_order' => 18],
+            ['key' => 'academics.manage_offerings', 'module' => 'D02_Academics', 'label_bn' => 'শ্রেণি অফারিং ও শাখা ধারণক্ষমতা পরিচালনা', 'label_en' => 'Manage period offerings and section capacities', 'display_order' => 19],
+            ['key' => 'academics.close_periods', 'module' => 'D02_Academics', 'label_bn' => 'শিক্ষাকাল চালু, বন্ধ ও পুনরায় চালু নিয়ন্ত্রণ', 'label_en' => 'Open, close and reopen academic periods', 'display_order' => 20],
+            ['key' => 'academics.programs.read', 'module' => 'D02_Academics', 'label_bn' => 'একাডেমিক বিভাগ ও কারিকুলাম দেখা', 'label_en' => 'View academic programs', 'display_order' => 21],
+            ['key' => 'academics.programs.manage', 'module' => 'D02_Academics', 'label_bn' => 'একাডেমিক বিভাগ পরিচালনা', 'label_en' => 'Manage academic programs', 'display_order' => 22],
+            ['key' => 'academics.sessions.manage', 'module' => 'D02_Academics', 'label_bn' => 'শিক্ষাবর্ষ সেশন কনফিগারেশন', 'label_en' => 'Configure academic sessions', 'display_order' => 23],
+            ['key' => 'academics.classes.manage', 'module' => 'D02_Academics', 'label_bn' => 'শ্রেণী ও সেকশন ব্যবস্থাপনা', 'label_en' => 'Manage classes & sections', 'display_order' => 24],
+            ['key' => 'academics.subjects.manage', 'module' => 'D02_Academics', 'label_bn' => 'বিষয় ও সিলেবাস নির্ধারণ', 'label_en' => 'Manage subjects & syllabi', 'display_order' => 25],
+            ['key' => 'academics.manage', 'module' => 'D02_Academics', 'label_bn' => 'সার্বিক একাডেমিক ব্যবস্থাপনা', 'label_en' => 'Master academic management', 'display_order' => 26],
 
             // D03: Students
             ['key' => 'students.read', 'module' => 'D03_Students', 'label_bn' => 'শিক্ষার্থী তালিকা দেখা', 'label_en' => 'View student directory', 'display_order' => 19],
@@ -133,6 +141,7 @@ class RolePermissionSeeder extends Seeder
         // OFFICE_STAFF grants
         $staffPermissions = [
             'profile.read', 'profile.update', 'password.change',
+            'institution.read', 'academics.read',
             'students.create', 'students.update',
             'admissions.manage', 'promotions.manage',
             'payment_slips.issue',
@@ -150,6 +159,7 @@ class RolePermissionSeeder extends Seeder
         // ACCOUNTS grants
         $accountsPermissions = [
             'profile.read', 'profile.update', 'password.change',
+            'institution.read', 'academics.read',
             'payments.post', 'finance.reports.read',
         ];
 

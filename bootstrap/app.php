@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\AcademicDomainException;
 use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\RequirePermission;
@@ -40,6 +41,17 @@ return Application::configure(basePath: dirname(__DIR__))
             fn (Request $request) => true
         );
 
+        $exceptions->render(function (AcademicDomainException $e, Request $request) {
+            return response()->json([
+                'error' => [
+                    'code' => $e->errorCode,
+                    'message' => $e->getMessage(),
+                    'details' => empty($e->details) ? (object) [] : $e->details,
+                    'request_id' => $request->attributes->get('request_id'),
+                ],
+            ], $e->httpStatus);
+        });
+
         $exceptions->render(function (ValidationException $e, Request $request) {
             return response()->json([
                 'error' => [
@@ -65,6 +77,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'error' => [
                     'code' => $code,
                     'message' => $e->getMessage() ?: 'একটি অপ্রত্যাশিত ত্রুটি ঘটেছে।',
+                    'details' => (object) [],
                     'request_id' => $request->attributes->get('request_id'),
                 ],
             ], $e->getStatusCode());
