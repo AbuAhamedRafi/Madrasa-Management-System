@@ -41,47 +41,35 @@ class StudentDocumentService
             );
         }
 
-        // 2. Extension & MIME Check
+        // 2. Extension & MIME Check (Strictly PDF documents only)
         $ext = strtolower($file->getClientOriginalExtension());
-        $allowedExts = ['pdf', 'jpg', 'jpeg', 'png'];
-        if (!in_array($ext, $allowedExts, true)) {
+        if ($ext !== 'pdf') {
             throw new StudentDomainException(
                 'UNSAFE_DOCUMENT_TYPE',
-                'Invalid file extension. Only PDF, JPG, and PNG files are accepted.',
+                'Only PDF files are accepted for student documents.',
                 422,
-                ['file' => ['Invalid file extension.']]
+                ['file' => ['Only PDF files are accepted for student documents.']]
             );
         }
 
         $mime = $file->getMimeType();
-        $allowedMimes = ['application/pdf', 'image/jpeg', 'image/png'];
-        if (!in_array($mime, $allowedMimes, true)) {
+        if ($mime !== 'application/pdf') {
             throw new StudentDomainException(
                 'UNSAFE_DOCUMENT_TYPE',
-                'Invalid MIME type. Only PDF, JPEG, and PNG files are accepted.',
+                'Invalid MIME type. Only PDF documents are accepted.',
                 422,
-                ['file' => ['Invalid MIME type.']]
+                ['file' => ['Invalid MIME type. Only PDF documents are accepted.']]
             );
         }
 
-        // 3. Binary Magic Bytes Inspection
+        // 3. Binary Magic Bytes Inspection (Must start with %PDF-)
         $contents = file_get_contents($file->getRealPath(), false, null, 0, 16);
-        $isValidMagic = false;
-
-        if (str_starts_with($contents, "%PDF-")) {
-            $isValidMagic = ($ext === 'pdf');
-        } elseif (str_starts_with($contents, "\xFF\xD8\xFF")) {
-            $isValidMagic = in_array($ext, ['jpg', 'jpeg'], true);
-        } elseif (str_starts_with($contents, "\x89PNG\r\n\x1a\n")) {
-            $isValidMagic = ($ext === 'png');
-        }
-
-        if (!$isValidMagic) {
+        if (!str_starts_with($contents, "%PDF-")) {
             throw new StudentDomainException(
                 'UNSAFE_DOCUMENT_TYPE',
-                'Unsafe file payload: file content signature does not match allowed format.',
+                'Unsafe file payload: file content signature does not match PDF format.',
                 422,
-                ['file' => ['Unsafe file payload.']]
+                ['file' => ['File content signature does not match PDF format.']]
             );
         }
 
@@ -89,6 +77,14 @@ class StudentDocumentService
         $sha256 = hash_file('sha256', $file->getRealPath());
         $filename = Str::uuid() . '.' . $ext;
         $dir = 'student_documents/' . $student->id;
+
+        // Ensure directory exists with read/write permissions
+        $absoluteDir = storage_path('app/private/' . $dir);
+        if (!file_exists($absoluteDir)) {
+            @mkdir($absoluteDir, 0777, true);
+            @chmod($absoluteDir, 0777);
+        }
+
         $storedPath = $file->storeAs($dir, $filename, 'local');
 
         $doc = StudentDocument::create([
