@@ -42,3 +42,4 @@ class AcademicProgramResource extends JsonResource
         ];
     }
 }
+

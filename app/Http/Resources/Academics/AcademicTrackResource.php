@@ -19,3 +19,4 @@ class AcademicTrackResource extends JsonResource
         ];
     }
 }
+

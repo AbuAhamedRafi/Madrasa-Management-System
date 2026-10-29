@@ -120,3 +120,4 @@ class AcademicCohortController extends Controller
         ]);
     }
 }
+

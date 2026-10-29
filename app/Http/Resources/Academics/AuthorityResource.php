@@ -21,3 +21,4 @@ class AuthorityResource extends JsonResource
         ];
     }
 }
+

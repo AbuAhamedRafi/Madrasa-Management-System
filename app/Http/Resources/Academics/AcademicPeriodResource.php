@@ -48,3 +48,4 @@ class AcademicPeriodResource extends JsonResource
         ];
     }
 }
+

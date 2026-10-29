@@ -32,3 +32,4 @@ class AcademicOfferingResource extends JsonResource
         ];
     }
 }
+

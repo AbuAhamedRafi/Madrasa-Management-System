@@ -109,3 +109,4 @@ class AuthorityController extends Controller
         ]);
     }
 }
+

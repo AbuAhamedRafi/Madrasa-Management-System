@@ -36,3 +36,4 @@ class OfferingSectionRepository
         return $section->fresh(['offering']);
     }
 }
+
