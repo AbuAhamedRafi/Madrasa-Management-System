@@ -66,15 +66,17 @@ class StudentDuplicateReviewService
         }
 
         $decision = strtoupper(trim($decisionStr));
-        if (!in_array($decision, ['APPROVED', 'REJECTED'])) {
+        if (in_array($decision, ['APPROVE', 'APPROVED'], true)) {
+            $newStatus = DuplicateReviewStatus::APPROVED;
+        } elseif (in_array($decision, ['REJECT', 'REJECTED'], true)) {
+            $newStatus = DuplicateReviewStatus::REJECTED;
+        } else {
             throw new StudentDomainException(
                 'INVALID_DECISION',
-                "Decision must be either 'APPROVED' or 'REJECTED'.",
+                "Decision must be either 'APPROVE' or 'REJECT'.",
                 422
             );
         }
-
-        $newStatus = $decision === 'APPROVED' ? DuplicateReviewStatus::APPROVED : DuplicateReviewStatus::REJECTED;
 
         $review->status = $newStatus;
         $review->decision_reason = trim($reason);

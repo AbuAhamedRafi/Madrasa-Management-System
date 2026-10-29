@@ -13,6 +13,7 @@ use App\Http\Controllers\Academics\InstitutionController;
 use App\Http\Controllers\Academics\OfferingSectionController;
 use App\Http\Controllers\Academics\ProgramClassController;
 use App\Http\Controllers\Students\StudentController;
+use App\Http\Controllers\Students\StudentDocumentController;
 use App\Http\Controllers\Students\StudentDuplicateCheckController;
 use App\Http\Controllers\Students\StudentDuplicateReviewController;
 use App\Http\Controllers\Students\StudentFinancialLookupController;
@@ -100,6 +101,13 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
         Route::get('/{id}/identifiers', [StudentIdentifierController::class, 'index'])->whereNumber('id')->middleware('permission:students.read');
         Route::post('/{id}/identifiers', [StudentIdentifierController::class, 'store'])->whereNumber('id')->middleware('permission:students.manage_identifiers');
         Route::delete('/{id}/identifiers/{identifierId}', [StudentIdentifierController::class, 'destroy'])->whereNumber(['id', 'identifierId'])->middleware('permission:students.manage_identifiers');
+
+        // Documents sub-resource
+        Route::get('/{id}/documents', [StudentDocumentController::class, 'index'])->whereNumber('id')->middleware('permission:students.read');
+        Route::post('/{id}/documents', [StudentDocumentController::class, 'store'])->whereNumber('id')->middleware('permission:students.manage_documents');
+        Route::get('/{id}/documents/{docId}/download', [StudentDocumentController::class, 'download'])->whereNumber(['id', 'docId'])->middleware('permission:students.read');
+        Route::post('/{id}/documents/{docId}/verify', [StudentDocumentController::class, 'verify'])->whereNumber(['id', 'docId'])->middleware('permission:students.manage_documents');
+        Route::delete('/{id}/documents/{docId}', [StudentDocumentController::class, 'destroy'])->whereNumber(['id', 'docId'])->middleware('permission:students.manage_documents');
     });
 
     // Admin user management, role administration & D02 academic mutations
