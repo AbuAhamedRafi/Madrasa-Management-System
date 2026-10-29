@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\AcademicDomainException;
+use App\Exceptions\StudentDomainException;
 use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\RequirePermission;
@@ -52,6 +53,17 @@ return Application::configure(basePath: dirname(__DIR__))
             ], $e->httpStatus);
         });
 
+        $exceptions->render(function (StudentDomainException $e, Request $request) {
+            return response()->json([
+                'error' => [
+                    'code' => $e->errorCode,
+                    'message' => $e->getMessage(),
+                    'details' => empty($e->details) ? (object) [] : $e->details,
+                    'request_id' => $request->attributes->get('request_id'),
+                ],
+            ], $e->httpStatus);
+        });
+
         $exceptions->render(function (ValidationException $e, Request $request) {
             return response()->json([
                 'error' => [
@@ -60,6 +72,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     'details' => $e->errors(),
                     'request_id' => $request->attributes->get('request_id'),
                 ],
+                'errors' => $e->errors(),
             ], 422);
         });
 

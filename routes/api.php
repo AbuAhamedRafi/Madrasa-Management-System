@@ -12,6 +12,11 @@ use App\Http\Controllers\Academics\EducationLevelController;
 use App\Http\Controllers\Academics\InstitutionController;
 use App\Http\Controllers\Academics\OfferingSectionController;
 use App\Http\Controllers\Academics\ProgramClassController;
+use App\Http\Controllers\Students\StudentController;
+use App\Http\Controllers\Students\StudentFinancialLookupController;
+use App\Http\Controllers\Students\StudentGuardianController;
+use App\Http\Controllers\Students\StudentIdentifierController;
+use App\Http\Controllers\Students\StudentRegistrationController;
 use App\Http\Controllers\Authentication\ActivationController;
 use App\Http\Controllers\RolePermission\RolePermissionController;
 use App\Http\Controllers\UserManagement\UserController;
@@ -68,6 +73,28 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
             Route::get('/offerings/{id}', [AcademicOfferingController::class, 'show'])->whereNumber('id');
             Route::get('/sections/{id}', [OfferingSectionController::class, 'show'])->whereNumber('id');
         });
+    });
+
+    // D03: Student & Guardian routes
+    Route::prefix('v1/students')->group(function () {
+        Route::post('/', [StudentRegistrationController::class, 'store'])->middleware('permission:students.create');
+        Route::get('/lookup', [StudentFinancialLookupController::class, 'lookup'])->middleware('permission:students.financial_lookup');
+        Route::get('/', [StudentController::class, 'index'])->middleware('permission:students.read');
+        Route::get('/{id}', [StudentController::class, 'show'])->whereNumber('id')->middleware('permission:students.read');
+        Route::patch('/{id}', [StudentController::class, 'update'])->whereNumber('id')->middleware('permission:students.update');
+        Route::patch('/{id}/status', [StudentController::class, 'updateStatus'])->whereNumber('id')->middleware('permission:students.manage_status');
+
+        // Guardians sub-resource
+        Route::get('/{id}/guardians', [StudentGuardianController::class, 'index'])->whereNumber('id')->middleware('permission:students.read');
+        Route::post('/{id}/guardians', [StudentGuardianController::class, 'store'])->whereNumber('id')->middleware('permission:students.manage_guardians');
+        Route::post('/{id}/guardians/{guardianId}/primary', [StudentGuardianController::class, 'makePrimary'])->whereNumber(['id', 'guardianId'])->middleware('permission:students.manage_guardians');
+        Route::patch('/{id}/guardians/{guardianId}/consent', [StudentGuardianController::class, 'updateConsent'])->whereNumber(['id', 'guardianId'])->middleware('permission:students.manage_guardians');
+        Route::delete('/{id}/guardians/{guardianId}', [StudentGuardianController::class, 'destroy'])->whereNumber(['id', 'guardianId'])->middleware('permission:students.manage_guardians');
+
+        // Identifiers sub-resource
+        Route::get('/{id}/identifiers', [StudentIdentifierController::class, 'index'])->whereNumber('id')->middleware('permission:students.read');
+        Route::post('/{id}/identifiers', [StudentIdentifierController::class, 'store'])->whereNumber('id')->middleware('permission:students.manage_identifiers');
+        Route::delete('/{id}/identifiers/{identifierId}', [StudentIdentifierController::class, 'destroy'])->whereNumber(['id', 'identifierId'])->middleware('permission:students.manage_identifiers');
     });
 
     // Admin user management, role administration & D02 academic mutations

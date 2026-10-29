@@ -78,12 +78,16 @@ class RolePermissionSeeder extends Seeder
             ['key' => 'academics.subjects.manage', 'module' => 'D02_Academics', 'label_bn' => 'বিষয় ও সিলেবাস নির্ধারণ', 'label_en' => 'Manage subjects & syllabi', 'display_order' => 25],
             ['key' => 'academics.manage', 'module' => 'D02_Academics', 'label_bn' => 'সার্বিক একাডেমিক ব্যবস্থাপনা', 'label_en' => 'Master academic management', 'display_order' => 26],
 
-            // D03: Students
-            ['key' => 'students.read', 'module' => 'D03_Students', 'label_bn' => 'শিক্ষার্থী তালিকা দেখা', 'label_en' => 'View student directory', 'display_order' => 19],
-            ['key' => 'students.create', 'module' => 'D03_Students', 'label_bn' => 'নতুন শিক্ষার্থী নিবন্ধন', 'label_en' => 'Create student profiles', 'display_order' => 20],
-            ['key' => 'students.update', 'module' => 'D03_Students', 'label_bn' => 'শিক্ষার্থীর তথ্য পরিবর্তন', 'label_en' => 'Update student records', 'display_order' => 21],
-            ['key' => 'students.delete', 'module' => 'D03_Students', 'label_bn' => 'শিক্ষার্থী রেকর্ড মুছা', 'label_en' => 'Archive or delete students', 'display_order' => 22],
-            ['key' => 'students.export', 'module' => 'D03_Students', 'label_bn' => 'শিক্ষার্থী তথ্য এক্সপোর্ট', 'label_en' => 'Export student registers', 'display_order' => 23],
+            // D03: Students & Guardians
+            ['key' => 'students.read', 'module' => 'D03_Students', 'label_bn' => 'শিক্ষার্থী তালিকা ও প্রোফাইল দেখা', 'label_en' => 'View student directory & profiles', 'display_order' => 27],
+            ['key' => 'students.create', 'module' => 'D03_Students', 'label_bn' => 'নতুন শিক্ষার্থী ভর্তি / নিবন্ধন', 'label_en' => 'Register new students', 'display_order' => 28],
+            ['key' => 'students.update', 'module' => 'D03_Students', 'label_bn' => 'শিক্ষার্থীর প্রোফাইল সম্পাদনা', 'label_en' => 'Update student records', 'display_order' => 29],
+            ['key' => 'students.manage_guardians', 'module' => 'D03_Students', 'label_bn' => 'অভিভাবক সংযুক্তি ও পরিবর্তন', 'label_en' => 'Manage guardians & SMS consent', 'display_order' => 30],
+            ['key' => 'students.manage_documents', 'module' => 'D03_Students', 'label_bn' => 'নথি আপলোড ও যাচাই', 'label_en' => 'Manage student documents', 'display_order' => 31],
+            ['key' => 'students.manage_identifiers', 'module' => 'D03_Students', 'label_bn' => 'বোর্ড / পূর্ববর্তী রোল নম্বর ব্যবস্থাপনা', 'label_en' => 'Manage external identifiers', 'display_order' => 32],
+            ['key' => 'students.manage_status', 'module' => 'D03_Students', 'label_bn' => 'শিক্ষার্থীর অবস্থা পরিবর্তন (সক্রিয়/নিষ্ক্রিয়)', 'label_en' => 'Manage student status lifecycle', 'display_order' => 33],
+            ['key' => 'students.review_duplicates', 'module' => 'D03_Students', 'label_bn' => 'সন্দেহভাজন ডুপ্লিকেট অনুমোদন/বাতিল', 'label_en' => 'Review duplicate admissions', 'display_order' => 34],
+            ['key' => 'students.financial_lookup', 'module' => 'D03_Students', 'label_bn' => 'আর্থিক ফি জমার জন্য শিক্ষার্থী অনুসন্ধান', 'label_en' => 'Student financial lookup', 'display_order' => 35],
 
             // D04-D05: Admissions & Promotions
             ['key' => 'admissions.read', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি আবেদন পরিদর্শন', 'label_en' => 'View admission applications', 'display_order' => 24],
@@ -142,7 +146,8 @@ class RolePermissionSeeder extends Seeder
         $staffPermissions = [
             'profile.read', 'profile.update', 'password.change',
             'institution.read', 'academics.read',
-            'students.create', 'students.update',
+            'students.read', 'students.create', 'students.update',
+            'students.manage_guardians', 'students.manage_documents', 'students.manage_identifiers',
             'admissions.manage', 'promotions.manage',
             'payment_slips.issue',
         ];
@@ -160,6 +165,7 @@ class RolePermissionSeeder extends Seeder
         $accountsPermissions = [
             'profile.read', 'profile.update', 'password.change',
             'institution.read', 'academics.read',
+            'students.financial_lookup',
             'payments.post', 'finance.reports.read',
         ];
 

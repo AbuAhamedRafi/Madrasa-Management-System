@@ -342,19 +342,19 @@ class DeliverableTwoComprehensiveTest extends TestCase
         $sessionProgram = collect($programs)->firstWhere('code', 'ALM');
         $otherSessionProgram = collect($programs)->firstWhere('code', 'FZ-P');
 
-        // AT-D02-11: CALENDAR_YEAR program can create 2026 with explicit dates and no cohort
+        // AT-D02-11: CALENDAR_YEAR program can create 2027 with explicit dates and no cohort
         $calPeriod = $this->actingAs($this->admin, 'sanctum')
             ->postJson('/api/v1/admin/academics/periods', [
                 'program_id' => $calendarProgram['id'],
                 'cohort_id' => null,
-                'label' => '2026',
-                'calendar_year' => 2026,
+                'label' => '2027',
+                'calendar_year' => 2027,
                 'study_year_number' => null,
-                'start_date' => '2026-01-01',
-                'end_date' => '2026-12-31',
+                'start_date' => '2027-01-01',
+                'end_date' => '2027-12-31',
             ]);
         $calPeriod->assertStatus(201)
-            ->assertJsonPath('data.calendar_year', 2026)
+            ->assertJsonPath('data.calendar_year', 2027)
             ->assertJsonPath('data.cohort_id', null);
 
         // AT-D02-12: Calendar year program rejects cohort creation (422 INVALID_COHORT_SCHEME)
@@ -630,8 +630,8 @@ class DeliverableTwoComprehensiveTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('error.code', 'ACTIVE_DEPENDENCY_EXISTS');
 
-        // AT-D02-36: Student/payment/admission tables are not introduced in D02
-        $this->assertFalse(Schema::hasTable('students'));
+        // AT-D02-36: D04/D06/D07 tables are not introduced prematurely (students table is introduced in D03)
+        $this->assertTrue(Schema::hasTable('students'));
         $this->assertFalse(Schema::hasTable('admissions'));
         $this->assertFalse(Schema::hasTable('payment_slips'));
         $this->assertFalse(Schema::hasTable('invoices'));
