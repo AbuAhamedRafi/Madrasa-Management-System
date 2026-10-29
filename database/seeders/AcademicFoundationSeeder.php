@@ -29,7 +29,7 @@ class AcademicFoundationSeeder extends Seeder
             [
                 'name_bn' => 'জামিয়া আরাবিয়া হাফিজিয়া ক্বারিয়ানা মাদ্রাসা (লিল্লাহ বোডিং ও এতিমখানা)',
                 'name_en' => 'Jamia Arabia Hafizia Qariyana Madrasa (Lillah Boarding & Orphanage)',
-                'address_bn' => 'সদর, বাংলাদেশ',
+                'address_bn' => 'সদর, দিনাজপুর, বাংলাদেশ',
                 'address_en' => 'Sadar, Dinajpur, Bangladesh',
                 'phone' => '01700000000',
                 'default_locale' => 'bn-BD',
@@ -64,8 +64,7 @@ class AcademicFoundationSeeder extends Seeder
             ['authority_id' => $bmeb->id, 'code' => 'DKH', 'name_bn' => 'দাখিল', 'name_en' => 'Secondary / Dakhil', 'sort_order' => 2],
             ['authority_id' => $bmeb->id, 'code' => 'ALM', 'name_bn' => 'আলিম', 'name_en' => 'Higher Secondary / Alim', 'sort_order' => 3],
             ['authority_id' => $iau->id, 'code' => 'FZL', 'name_bn' => 'ফাজিল', 'name_en' => 'Degree / Fazil', 'sort_order' => 4],
-            ['authority_id' => $iau->
-            id, 'code' => 'KML', 'name_bn' => 'কামিল', 'name_en' => 'Postgraduate / Kamil', 'sort_order' => 5],
+            ['authority_id' => $iau->id, 'code' => 'KML', 'name_bn' => 'কামিল', 'name_en' => 'Postgraduate / Kamil', 'sort_order' => 5],
         ];
 
         $levels = [];
@@ -102,7 +101,7 @@ class AcademicFoundationSeeder extends Seeder
             );
         }
 
-        // 5. Illustrative Default Programs (Ebtedayee, Dakhil, Alim, Fazil Pass)
+        // 5. Default Programs (Ebtedayee, Dakhil, Alim, Fazil Pass)
         $ebtProgram = AcademicProgram::updateOrCreate(
             ['code' => 'EBT'],
             [
@@ -142,7 +141,7 @@ class AcademicFoundationSeeder extends Seeder
             ]
         );
 
-        AcademicProgram::updateOrCreate(
+        $fzlProgram = AcademicProgram::updateOrCreate(
             ['code' => 'FZ-P'],
             [
                 'department_id' => $departments['HIGHER']->id,
@@ -151,20 +150,72 @@ class AcademicFoundationSeeder extends Seeder
                 'name_en' => 'Fazil (Pass)',
                 'scheme' => AcademicScheme::SESSION_BASED,
                 'duration_years' => 3,
-                'state' => ProgramState::DRAFT,
+                'state' => ProgramState::ACTIVE,
             ]
         );
 
-        // 6. Program Classes & Tracks for Dakhil and Alim
-        $dakhilClasses = [
+        // 6. Ebtedayee Classes (Class 1 to 5), 2026 Period, Offerings & Sections
+        $ebtedayeeClassesData = [
+            ['code' => 'EBT-1', 'name_bn' => 'ইবতেদায়ি ১ম শ্রেণি', 'name_en' => 'Ebtedayee Class 1', 'stage_number' => 1, 'sort_order' => 1],
+            ['code' => 'EBT-2', 'name_bn' => 'ইবতেদায়ি ২য় শ্রেণি', 'name_en' => 'Ebtedayee Class 2', 'stage_number' => 2, 'sort_order' => 2],
+            ['code' => 'EBT-3', 'name_bn' => 'ইবতেদায়ি ৩য় শ্রেণি', 'name_en' => 'Ebtedayee Class 3', 'stage_number' => 3, 'sort_order' => 3],
+            ['code' => 'EBT-4', 'name_bn' => 'ইবতেদায়ি ৪র্থ শ্রেণি', 'name_en' => 'Ebtedayee Class 4', 'stage_number' => 4, 'sort_order' => 4],
+            ['code' => 'EBT-5', 'name_bn' => 'ইবতেদায়ি ৫ম শ্রেণি', 'name_en' => 'Ebtedayee Class 5', 'stage_number' => 5, 'sort_order' => 5],
+        ];
+        $ebtClasses = [];
+        foreach ($ebtedayeeClassesData as $ec) {
+            $ebtClasses[$ec['code']] = ProgramClass::updateOrCreate(
+                ['program_id' => $ebtProgram->id, 'code' => $ec['code']],
+                [
+                    'name_bn' => $ec['name_bn'],
+                    'name_en' => $ec['name_en'],
+                    'stage_number' => $ec['stage_number'],
+                    'sort_order' => $ec['sort_order'],
+                    'is_active' => true,
+                ]
+            );
+        }
+
+        $ebtPeriod2026 = AcademicPeriod::updateOrCreate(
+            ['program_id' => $ebtProgram->id, 'calendar_year' => 2026],
+            [
+                'cohort_id' => null,
+                'label' => '২০২৬ শিক্ষাবর্ষ (2026)',
+                'study_year_number' => null,
+                'start_date' => '2026-01-01',
+                'end_date' => '2026-12-31',
+                'state' => PeriodState::OPEN,
+                'lock_version' => 1,
+            ]
+        );
+
+        foreach ($ebtClasses as $ebtClass) {
+            $ebtOffering = AcademicOffering::updateOrCreate(
+                [
+                    'academic_period_id' => $ebtPeriod2026->id,
+                    'program_class_id' => $ebtClass->id,
+                    'academic_track_id' => null,
+                ],
+                ['is_active' => true]
+            );
+
+            OfferingSection::updateOrCreate(
+                ['academic_offering_id' => $ebtOffering->id, 'code' => 'SEC-A'],
+                ['name_bn' => 'ক শাখা', 'name_en' => 'Section A', 'capacity' => 40, 'is_active' => true]
+            );
+        }
+
+        // 7. Dakhil Classes (Class 6 to 10), Tracks, 2026 Period, Offerings & Sections
+        $dakhilClassesData = [
             ['code' => 'DKH-6', 'name_bn' => 'দাখিল ৬ষ্ঠ শ্রেণি', 'name_en' => 'Dakhil Class 6', 'stage_number' => 1, 'sort_order' => 1],
             ['code' => 'DKH-7', 'name_bn' => 'দাখিল ৭ম শ্রেণি', 'name_en' => 'Dakhil Class 7', 'stage_number' => 2, 'sort_order' => 2],
             ['code' => 'DKH-8', 'name_bn' => 'দাখিল ৮ম শ্রেণি', 'name_en' => 'Dakhil Class 8', 'stage_number' => 3, 'sort_order' => 3],
             ['code' => 'DKH-9', 'name_bn' => 'দাখিল ৯ম শ্রেণি', 'name_en' => 'Dakhil Class 9', 'stage_number' => 4, 'sort_order' => 4],
             ['code' => 'DKH-10', 'name_bn' => 'দাখিল ১০ম শ্রেণি', 'name_en' => 'Dakhil Class 10', 'stage_number' => 5, 'sort_order' => 5],
         ];
-        foreach ($dakhilClasses as $dc) {
-            ProgramClass::updateOrCreate(
+        $dkhClasses = [];
+        foreach ($dakhilClassesData as $dc) {
+            $dkhClasses[$dc['code']] = ProgramClass::updateOrCreate(
                 ['program_id' => $dkhProgram->id, 'code' => $dc['code']],
                 [
                     'name_bn' => $dc['name_bn'],
@@ -176,10 +227,65 @@ class AcademicFoundationSeeder extends Seeder
             );
         }
 
+        $dkhGen = AcademicTrack::updateOrCreate(
+            ['program_id' => $dkhProgram->id, 'code' => 'GENERAL'],
+            ['name_bn' => 'সাধারণ', 'name_en' => 'General', 'is_active' => true]
+        );
+        $dkhSci = AcademicTrack::updateOrCreate(
+            ['program_id' => $dkhProgram->id, 'code' => 'SCIENCE'],
+            ['name_bn' => 'বিজ্ঞান', 'name_en' => 'Science', 'is_active' => true]
+        );
+
+        $dkhPeriod2026 = AcademicPeriod::updateOrCreate(
+            ['program_id' => $dkhProgram->id, 'calendar_year' => 2026],
+            [
+                'cohort_id' => null,
+                'label' => '২০২৬ শিক্ষাবর্ষ (2026)',
+                'study_year_number' => null,
+                'start_date' => '2026-01-01',
+                'end_date' => '2026-12-31',
+                'state' => PeriodState::OPEN,
+                'lock_version' => 1,
+            ]
+        );
+
+        foreach (['DKH-6', 'DKH-7', 'DKH-8'] as $code) {
+            $off = AcademicOffering::updateOrCreate(
+                [
+                    'academic_period_id' => $dkhPeriod2026->id,
+                    'program_class_id' => $dkhClasses[$code]->id,
+                    'academic_track_id' => null,
+                ],
+                ['is_active' => true]
+            );
+            OfferingSection::updateOrCreate(
+                ['academic_offering_id' => $off->id, 'code' => 'SEC-A'],
+                ['name_bn' => 'ক শাখা', 'name_en' => 'Section A', 'capacity' => 50, 'is_active' => true]
+            );
+        }
+
+        foreach (['DKH-9', 'DKH-10'] as $code) {
+            foreach ([$dkhGen, $dkhSci] as $trk) {
+                $off = AcademicOffering::updateOrCreate(
+                    [
+                        'academic_period_id' => $dkhPeriod2026->id,
+                        'program_class_id' => $dkhClasses[$code]->id,
+                        'academic_track_id' => $trk->id,
+                    ],
+                    ['is_active' => true]
+                );
+                OfferingSection::updateOrCreate(
+                    ['academic_offering_id' => $off->id, 'code' => 'SEC-A'],
+                    ['name_bn' => 'ক শাখা', 'name_en' => 'Section A', 'capacity' => 45, 'is_active' => true]
+                );
+            }
+        }
+
+        // 8. Alim Classes, Tracks, Cohorts, Periods, Offerings & Sections
         $alimY1 = ProgramClass::updateOrCreate(
             ['program_id' => $almProgram->id, 'code' => 'ALM-Y1'],
             [
-                'name_bn' => 'আলিম প্রথম বর্ষ',
+                'name_bn' => 'আলিম ১ম বর্ষ',
                 'name_en' => 'Alim First Year',
                 'stage_number' => 1,
                 'sort_order' => 1,
@@ -189,7 +295,7 @@ class AcademicFoundationSeeder extends Seeder
         ProgramClass::updateOrCreate(
             ['program_id' => $almProgram->id, 'code' => 'ALM-Y2'],
             [
-                'name_bn' => 'আলিম দ্বিতীয় বর্ষ',
+                'name_bn' => 'আলিম ২য় বর্ষ',
                 'name_en' => 'Alim Second Year',
                 'stage_number' => 2,
                 'sort_order' => 2,
@@ -206,20 +312,6 @@ class AcademicFoundationSeeder extends Seeder
             ['name_bn' => 'মানবিক', 'name_en' => 'Humanities', 'is_active' => true]
         );
 
-        // 7. Illustrative Cohorts & Periods for Dakhil 2026 & Alim 2026-27
-        $dkhPeriod2026 = AcademicPeriod::updateOrCreate(
-            ['program_id' => $dkhProgram->id, 'calendar_year' => 2026],
-            [
-                'cohort_id' => null,
-                'label' => '2026',
-                'study_year_number' => null,
-                'start_date' => '2026-01-01',
-                'end_date' => '2026-12-31',
-                'state' => PeriodState::OPEN,
-                'lock_version' => 1,
-            ]
-        );
-
         $almCohort2627 = AcademicCohort::updateOrCreate(
             ['program_id' => $almProgram->id, 'label' => '2026-27'],
             [
@@ -233,9 +325,9 @@ class AcademicFoundationSeeder extends Seeder
             ['cohort_id' => $almCohort2627->id, 'study_year_number' => 1],
             [
                 'program_id' => $almProgram->id,
-                'label' => 'Alim First Year',
+                'label' => 'আলিম ১ম বর্ষ (২০২৬-২৭)',
                 'calendar_year' => null,
-                'start_date' => '2026-08-01',
+                'start_date' => '2026-07-01',
                 'end_date' => '2027-06-30',
                 'state' => PeriodState::OPEN,
                 'lock_version' => 1,
@@ -246,7 +338,7 @@ class AcademicFoundationSeeder extends Seeder
             ['cohort_id' => $almCohort2627->id, 'study_year_number' => 2],
             [
                 'program_id' => $almProgram->id,
-                'label' => 'Alim Second Year',
+                'label' => 'আলিম ২য় বর্ষ (২০২৬-২৭)',
                 'calendar_year' => null,
                 'start_date' => '2027-07-01',
                 'end_date' => '2028-06-30',
@@ -255,7 +347,6 @@ class AcademicFoundationSeeder extends Seeder
             ]
         );
 
-        // 8. Illustrative Offerings & Sections for Alim First Year (2026-27)
         $offSci = AcademicOffering::updateOrCreate(
             [
                 'academic_period_id' => $almPeriodY1->id,
@@ -264,13 +355,12 @@ class AcademicFoundationSeeder extends Seeder
             ],
             ['is_active' => true]
         );
-
         OfferingSection::updateOrCreate(
-            ['academic_offering_id' => $offSci->id, 'code' => 'A'],
+            ['academic_offering_id' => $offSci->id, 'code' => 'SEC-A'],
             ['name_bn' => 'ক শাখা', 'name_en' => 'Section A', 'capacity' => 50, 'is_active' => true]
         );
         OfferingSection::updateOrCreate(
-            ['academic_offering_id' => $offSci->id, 'code' => 'B'],
+            ['academic_offering_id' => $offSci->id, 'code' => 'SEC-B'],
             ['name_bn' => 'খ শাখা', 'name_en' => 'Section B', 'capacity' => 45, 'is_active' => true]
         );
 
@@ -282,10 +372,58 @@ class AcademicFoundationSeeder extends Seeder
             ],
             ['is_active' => true]
         );
-
         OfferingSection::updateOrCreate(
-            ['academic_offering_id' => $offHum->id, 'code' => 'A'],
+            ['academic_offering_id' => $offHum->id, 'code' => 'SEC-A'],
             ['name_bn' => 'ক শাখা', 'name_en' => 'Section A', 'capacity' => 55, 'is_active' => true]
+        );
+
+        // 9. Fazil (Pass) Classes, Cohort, Period, Offering & Section
+        $fzlY1 = ProgramClass::updateOrCreate(
+            ['program_id' => $fzlProgram->id, 'code' => 'FZL-Y1'],
+            ['name_bn' => 'ফাজিল ১ম বর্ষ', 'name_en' => 'Fazil 1st Year', 'stage_number' => 1, 'sort_order' => 1, 'is_active' => true]
+        );
+        ProgramClass::updateOrCreate(
+            ['program_id' => $fzlProgram->id, 'code' => 'FZL-Y2'],
+            ['name_bn' => 'ফাজিল ২য় বর্ষ', 'name_en' => 'Fazil 2nd Year', 'stage_number' => 2, 'sort_order' => 2, 'is_active' => true]
+        );
+        ProgramClass::updateOrCreate(
+            ['program_id' => $fzlProgram->id, 'code' => 'FZL-Y3'],
+            ['name_bn' => 'ফাজিল ৩য় বর্ষ', 'name_en' => 'Fazil 3rd Year', 'stage_number' => 3, 'sort_order' => 3, 'is_active' => true]
+        );
+
+        $fzlCohort = AcademicCohort::updateOrCreate(
+            ['program_id' => $fzlProgram->id, 'label' => '2026-27'],
+            [
+                'intake_year' => 2026,
+                'description' => 'Fazil Pass Cohort 2026-27',
+                'status' => CohortStatus::ACTIVE,
+            ]
+        );
+
+        $fzlPeriodY1 = AcademicPeriod::updateOrCreate(
+            ['cohort_id' => $fzlCohort->id, 'study_year_number' => 1],
+            [
+                'program_id' => $fzlProgram->id,
+                'label' => 'ফাজিল ১ম বর্ষ (২০২৬-২৭)',
+                'calendar_year' => null,
+                'start_date' => '2026-07-01',
+                'end_date' => '2027-06-30',
+                'state' => PeriodState::OPEN,
+                'lock_version' => 1,
+            ]
+        );
+
+        $fzlOff = AcademicOffering::updateOrCreate(
+            [
+                'academic_period_id' => $fzlPeriodY1->id,
+                'program_class_id' => $fzlY1->id,
+                'academic_track_id' => null,
+            ],
+            ['is_active' => true]
+        );
+        OfferingSection::updateOrCreate(
+            ['academic_offering_id' => $fzlOff->id, 'code' => 'SEC-A'],
+            ['name_bn' => 'ক শাখা', 'name_en' => 'Section A', 'capacity' => 60, 'is_active' => true]
         );
     }
 }
