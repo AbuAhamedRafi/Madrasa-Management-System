@@ -28,5 +28,10 @@ class DatabaseSeeder extends Seeder
             '--name-bn' => 'সুপার অ্যাডমিন',
             '--email' => 'superadmin@mms.edu.bd',
         ]);
+
+        // Seed comprehensive student and guardian sample foundation
+        $this->call([
+            StudentFoundationSeeder::class,
+        ]);
     }
 }

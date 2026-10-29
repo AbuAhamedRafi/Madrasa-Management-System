@@ -17,19 +17,21 @@ class StudentRepository
 
         if (!empty($filters['query'])) {
             $term = trim($filters['query']);
-            $query->where(function (Builder $q) use ($term) {
+            $normalizedPhone = preg_replace('/[^0-9+]/', '', $term);
+
+            $query->where(function (Builder $q) use ($term, $normalizedPhone) {
                 $q->where('student_id', 'ILIKE', "%{$term}%")
                     ->orWhere('name_bn', 'ILIKE', "%{$term}%")
                     ->orWhere('name_en', 'ILIKE', "%{$term}%")
                     ->orWhereHas('identifiers', function (Builder $iq) use ($term) {
                         $iq->where('value_normalized', strtoupper($term));
-                    })
-                    ->orWhereHas('guardians', function (Builder $gq) use ($term) {
-                        $normalizedPhone = preg_replace('/[^0-9+]/', '', $term);
-                        if (!empty($normalizedPhone)) {
-                            $gq->where('phone', 'ILIKE', "%{$normalizedPhone}%");
-                        }
                     });
+
+                if (!empty($normalizedPhone)) {
+                    $q->orWhereHas('guardians', function (Builder $gq) use ($normalizedPhone) {
+                        $gq->where('phone', 'ILIKE', "%{$normalizedPhone}%");
+                    });
+                }
             });
         }
 
