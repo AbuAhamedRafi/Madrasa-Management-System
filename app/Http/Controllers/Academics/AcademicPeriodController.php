@@ -112,7 +112,7 @@ class AcademicPeriodController extends Controller
 
     public function updateStatus(UpdateAcademicPeriodStatusRequest $request, int $id): JsonResponse
     {
-        $updated = $this->periodLifecycleService->transitionState(
+        $updated = $this->periodLifecycleService->transitionStatus(
             $id,
             PeriodState::from($request->input('state')),
             (int) $request->input('lock_version'),

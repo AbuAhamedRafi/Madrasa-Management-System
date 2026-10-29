@@ -68,7 +68,7 @@ class AcademicOfferingController extends Controller
 
     public function store(StoreAcademicOfferingRequest $request): JsonResponse
     {
-        $offering = $this->offeringService->createOffering(
+        $offering = $this->offeringService->create(
             $request->validated(),
             $request->user(),
             $request->ip(),
@@ -87,7 +87,7 @@ class AcademicOfferingController extends Controller
             abort(404, 'Academic offering not found.');
         }
 
-        $updated = $this->offeringService->updateOffering(
+        $updated = $this->offeringService->update(
             $offering,
             $request->validated(),
             $request->user(),

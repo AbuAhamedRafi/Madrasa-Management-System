@@ -99,7 +99,7 @@ class AcademicProgramController extends Controller
 
     public function store(StoreAcademicProgramRequest $request): JsonResponse
     {
-        $program = $this->programService->createProgram(
+        $program = $this->programService->create(
             $request->validated(),
             $request->user(),
             $request->ip(),
@@ -118,7 +118,7 @@ class AcademicProgramController extends Controller
             abort(404, 'Academic program not found.');
         }
 
-        $updated = $this->programService->updateProgram(
+        $updated = $this->programService->update(
             $program,
             $request->validated(),
             $request->user(),
@@ -138,7 +138,7 @@ class AcademicProgramController extends Controller
             abort(404, 'Academic program not found.');
         }
 
-        $updated = $this->programService->updateProgramStatus(
+        $updated = $this->programService->updateStatus(
             $program,
             ProgramState::from($request->input('state')),
             $request->input('reason'),
