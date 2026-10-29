@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Academics;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Academics\UpdateInstitutionRequest;
 use App\Http\Requests\Academics\UploadInstitutionLogoRequest;
-use App\Models\Institution;
+use App\Http\Resources\Academics\InstitutionResource;
 use App\Services\Academics\InstitutionService;
 use Illuminate\Http\JsonResponse;
 
@@ -20,7 +20,7 @@ class InstitutionController extends Controller
         $institution = $this->institutionService->getProfile();
 
         return response()->json([
-            'data' => $this->format($institution),
+            'data' => new InstitutionResource($institution),
         ]);
     }
 
@@ -34,7 +34,7 @@ class InstitutionController extends Controller
         );
 
         return response()->json([
-            'data' => $this->format($institution),
+            'data' => new InstitutionResource($institution),
         ]);
     }
 
@@ -48,25 +48,7 @@ class InstitutionController extends Controller
         );
 
         return response()->json([
-            'data' => $this->format($institution),
+            'data' => new InstitutionResource($institution),
         ]);
     }
-
-    protected function format(Institution $institution): array
-    {
-        return [
-            'id' => $institution->id,
-            'code' => $institution->code,
-            'name_bn' => $institution->name_bn,
-            'name_en' => $institution->name_en,
-            'address_bn' => $institution->address_bn,
-            'address_en' => $institution->address_en,
-            'phone' => $institution->phone,
-            'logo_url' => $institution->logo_path,
-            'default_locale' => $institution->default_locale,
-            'timezone' => $institution->timezone,
-            'updated_at' => $institution->updated_at?->toISOString(),
-        ];
-    }
 }
-

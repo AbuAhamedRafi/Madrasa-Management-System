@@ -1,12 +1,17 @@
 <?php
 
-use App\Http\Controllers\Academics\AcademicCohortPeriodController;
+use App\Http\Controllers\Academics\AcademicCohortController;
 use App\Http\Controllers\Academics\AcademicOfferingController;
 use App\Http\Controllers\Academics\AcademicOverviewController;
+use App\Http\Controllers\Academics\AcademicPeriodController;
 use App\Http\Controllers\Academics\AcademicProgramController;
-use App\Http\Controllers\Academics\AuthorityLevelController;
+use App\Http\Controllers\Academics\AcademicTrackController;
+use App\Http\Controllers\Academics\AuthorityController;
 use App\Http\Controllers\Academics\DepartmentController;
+use App\Http\Controllers\Academics\EducationLevelController;
 use App\Http\Controllers\Academics\InstitutionController;
+use App\Http\Controllers\Academics\OfferingSectionController;
+use App\Http\Controllers\Academics\ProgramClassController;
 use App\Http\Controllers\Authentication\ActivationController;
 use App\Http\Controllers\RolePermission\RolePermissionController;
 use App\Http\Controllers\UserManagement\UserController;
@@ -35,10 +40,10 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
             Route::get('/hierarchy', [AcademicOverviewController::class, 'hierarchy']);
             Route::get('/options', [AcademicOverviewController::class, 'options']);
 
-            Route::get('/authorities', [AuthorityLevelController::class, 'indexAuthorities']);
-            Route::get('/authorities/{id}', [AuthorityLevelController::class, 'showAuthority'])->whereNumber('id');
-            Route::get('/levels', [AuthorityLevelController::class, 'indexLevels']);
-            Route::get('/levels/{id}', [AuthorityLevelController::class, 'showLevel'])->whereNumber('id');
+            Route::get('/authorities', [AuthorityController::class, 'index']);
+            Route::get('/authorities/{id}', [AuthorityController::class, 'show'])->whereNumber('id');
+            Route::get('/levels', [EducationLevelController::class, 'index']);
+            Route::get('/levels/{id}', [EducationLevelController::class, 'show'])->whereNumber('id');
 
             Route::get('/departments', [DepartmentController::class, 'index']);
             Route::get('/departments/{id}', [DepartmentController::class, 'show'])->whereNumber('id');
@@ -47,21 +52,21 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
             Route::get('/programs/{id}', [AcademicProgramController::class, 'show'])->whereNumber('id');
             Route::get('/programs/{id}/structure', [AcademicProgramController::class, 'structure'])->whereNumber('id');
 
-            Route::get('/classes', [AcademicProgramController::class, 'indexClasses']);
-            Route::get('/classes/{id}', [AcademicProgramController::class, 'showClass'])->whereNumber('id');
+            Route::get('/classes', [ProgramClassController::class, 'index']);
+            Route::get('/classes/{id}', [ProgramClassController::class, 'show'])->whereNumber('id');
 
-            Route::get('/tracks', [AcademicProgramController::class, 'indexTracks']);
-            Route::get('/tracks/{id}', [AcademicProgramController::class, 'showTrack'])->whereNumber('id');
+            Route::get('/tracks', [AcademicTrackController::class, 'index']);
+            Route::get('/tracks/{id}', [AcademicTrackController::class, 'show'])->whereNumber('id');
 
-            Route::get('/cohorts', [AcademicCohortPeriodController::class, 'indexCohorts']);
-            Route::get('/cohorts/{id}', [AcademicCohortPeriodController::class, 'showCohort'])->whereNumber('id');
+            Route::get('/cohorts', [AcademicCohortController::class, 'index']);
+            Route::get('/cohorts/{id}', [AcademicCohortController::class, 'show'])->whereNumber('id');
 
-            Route::get('/periods', [AcademicCohortPeriodController::class, 'indexPeriods']);
-            Route::get('/periods/{id}', [AcademicCohortPeriodController::class, 'showPeriod'])->whereNumber('id');
+            Route::get('/periods', [AcademicPeriodController::class, 'index']);
+            Route::get('/periods/{id}', [AcademicPeriodController::class, 'show'])->whereNumber('id');
 
-            Route::get('/offerings', [AcademicOfferingController::class, 'indexOfferings']);
-            Route::get('/offerings/{id}', [AcademicOfferingController::class, 'showOffering'])->whereNumber('id');
-            Route::get('/sections/{id}', [AcademicOfferingController::class, 'showSection'])->whereNumber('id');
+            Route::get('/offerings', [AcademicOfferingController::class, 'index']);
+            Route::get('/offerings/{id}', [AcademicOfferingController::class, 'show'])->whereNumber('id');
+            Route::get('/sections/{id}', [OfferingSectionController::class, 'show'])->whereNumber('id');
         });
     });
 
@@ -89,13 +94,13 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
         // D02: Academic structure mutations
         Route::prefix('academics')->group(function () {
             Route::middleware('permission:academics.manage_structure')->group(function () {
-                Route::post('/authorities', [AuthorityLevelController::class, 'storeAuthority']);
-                Route::patch('/authorities/{id}', [AuthorityLevelController::class, 'updateAuthority'])->whereNumber('id');
-                Route::patch('/authorities/{id}/status', [AuthorityLevelController::class, 'updateAuthorityStatus'])->whereNumber('id');
+                Route::post('/authorities', [AuthorityController::class, 'store']);
+                Route::patch('/authorities/{id}', [AuthorityController::class, 'update'])->whereNumber('id');
+                Route::patch('/authorities/{id}/status', [AuthorityController::class, 'updateStatus'])->whereNumber('id');
 
-                Route::post('/levels', [AuthorityLevelController::class, 'storeLevel']);
-                Route::patch('/levels/{id}', [AuthorityLevelController::class, 'updateLevel'])->whereNumber('id');
-                Route::patch('/levels/{id}/status', [AuthorityLevelController::class, 'updateLevelStatus'])->whereNumber('id');
+                Route::post('/levels', [EducationLevelController::class, 'store']);
+                Route::patch('/levels/{id}', [EducationLevelController::class, 'update'])->whereNumber('id');
+                Route::patch('/levels/{id}/status', [EducationLevelController::class, 'updateStatus'])->whereNumber('id');
 
                 Route::post('/departments', [DepartmentController::class, 'store']);
                 Route::patch('/departments/{id}', [DepartmentController::class, 'update'])->whereNumber('id');
@@ -105,36 +110,36 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
                 Route::patch('/programs/{id}', [AcademicProgramController::class, 'update'])->whereNumber('id');
                 Route::patch('/programs/{id}/status', [AcademicProgramController::class, 'updateStatus'])->whereNumber('id');
 
-                Route::post('/classes', [AcademicProgramController::class, 'storeClass']);
-                Route::patch('/classes/{id}', [AcademicProgramController::class, 'updateClass'])->whereNumber('id');
-                Route::patch('/classes/{id}/status', [AcademicProgramController::class, 'updateClassStatus'])->whereNumber('id');
+                Route::post('/classes', [ProgramClassController::class, 'store']);
+                Route::patch('/classes/{id}', [ProgramClassController::class, 'update'])->whereNumber('id');
+                Route::patch('/classes/{id}/status', [ProgramClassController::class, 'updateStatus'])->whereNumber('id');
 
-                Route::post('/tracks', [AcademicProgramController::class, 'storeTrack']);
-                Route::patch('/tracks/{id}', [AcademicProgramController::class, 'updateTrack'])->whereNumber('id');
-                Route::patch('/tracks/{id}/status', [AcademicProgramController::class, 'updateTrackStatus'])->whereNumber('id');
+                Route::post('/tracks', [AcademicTrackController::class, 'store']);
+                Route::patch('/tracks/{id}', [AcademicTrackController::class, 'update'])->whereNumber('id');
+                Route::patch('/tracks/{id}/status', [AcademicTrackController::class, 'updateStatus'])->whereNumber('id');
             });
 
             Route::middleware('permission:academics.manage_cohorts')->group(function () {
-                Route::post('/cohorts', [AcademicCohortPeriodController::class, 'storeCohort']);
-                Route::patch('/cohorts/{id}', [AcademicCohortPeriodController::class, 'updateCohort'])->whereNumber('id');
-                Route::patch('/cohorts/{id}/status', [AcademicCohortPeriodController::class, 'updateCohortStatus'])->whereNumber('id');
+                Route::post('/cohorts', [AcademicCohortController::class, 'store']);
+                Route::patch('/cohorts/{id}', [AcademicCohortController::class, 'update'])->whereNumber('id');
+                Route::patch('/cohorts/{id}/status', [AcademicCohortController::class, 'updateStatus'])->whereNumber('id');
             });
 
             Route::middleware('permission:academics.manage_periods')->group(function () {
-                Route::post('/periods', [AcademicCohortPeriodController::class, 'storePeriod']);
-                Route::patch('/periods/{id}', [AcademicCohortPeriodController::class, 'updatePeriod'])->whereNumber('id');
+                Route::post('/periods', [AcademicPeriodController::class, 'store']);
+                Route::patch('/periods/{id}', [AcademicPeriodController::class, 'update'])->whereNumber('id');
             });
 
-            Route::patch('/periods/{id}/status', [AcademicCohortPeriodController::class, 'updatePeriodStatus'])
+            Route::patch('/periods/{id}/status', [AcademicPeriodController::class, 'updateStatus'])
                 ->whereNumber('id')
                 ->middleware('permission:academics.close_periods');
 
             Route::middleware('permission:academics.manage_offerings')->group(function () {
-                Route::post('/offerings', [AcademicOfferingController::class, 'storeOffering']);
-                Route::patch('/offerings/{id}', [AcademicOfferingController::class, 'updateOffering'])->whereNumber('id');
-                Route::post('/offerings/{id}/sections', [AcademicOfferingController::class, 'storeSection'])->whereNumber('id');
-                Route::patch('/sections/{id}', [AcademicOfferingController::class, 'updateSection'])->whereNumber('id');
-                Route::patch('/sections/{id}/status', [AcademicOfferingController::class, 'updateSectionStatus'])->whereNumber('id');
+                Route::post('/offerings', [AcademicOfferingController::class, 'store']);
+                Route::patch('/offerings/{id}', [AcademicOfferingController::class, 'update'])->whereNumber('id');
+                Route::post('/offerings/{id}/sections', [OfferingSectionController::class, 'store'])->whereNumber('id');
+                Route::patch('/sections/{id}', [OfferingSectionController::class, 'update'])->whereNumber('id');
+                Route::patch('/sections/{id}/status', [OfferingSectionController::class, 'updateStatus'])->whereNumber('id');
             });
         });
     });

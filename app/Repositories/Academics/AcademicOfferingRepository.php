@@ -3,7 +3,6 @@
 namespace App\Repositories\Academics;
 
 use App\Models\AcademicOffering;
-use App\Models\OfferingSection;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class AcademicOfferingRepository
@@ -67,35 +66,4 @@ class AcademicOfferingRepository
 
         return $offering->fresh(['period.program', 'programClass', 'track', 'sections']);
     }
-
-    public function findSectionById(int $id): ?OfferingSection
-    {
-        return OfferingSection::with(['offering.period', 'offering.programClass', 'offering.track'])->find($id);
-    }
-
-    public function findSectionByOfferingAndCode(int $offeringId, string $code, ?int $excludeId = null): ?OfferingSection
-    {
-        $normalized = strtoupper(trim($code));
-        $query = OfferingSection::where('academic_offering_id', $offeringId)
-            ->whereRaw('UPPER(code) = ?', [$normalized]);
-
-        if ($excludeId !== null) {
-            $query->where('id', '!=', $excludeId);
-        }
-
-        return $query->first();
-    }
-
-    public function createSection(array $attributes): OfferingSection
-    {
-        return OfferingSection::create($attributes)->fresh(['offering']);
-    }
-
-    public function updateSection(OfferingSection $section, array $attributes): OfferingSection
-    {
-        $section->update($attributes);
-
-        return $section->fresh(['offering']);
-    }
 }
-

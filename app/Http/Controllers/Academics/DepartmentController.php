@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Academics\StoreDepartmentRequest;
 use App\Http\Requests\Academics\UpdateCatalogStatusRequest;
 use App\Http\Requests\Academics\UpdateDepartmentRequest;
-use App\Models\Department;
+use App\Http\Resources\Academics\DepartmentResource;
 use App\Repositories\Academics\DepartmentRepository;
 use App\Services\Academics\DepartmentService;
 use Illuminate\Http\JsonResponse;
@@ -33,7 +33,7 @@ class DepartmentController extends Controller
         );
 
         return response()->json([
-            'data' => collect($paginator->items())->map(fn (Department $d) => $this->format($d))->values(),
+            'data' => DepartmentResource::collection($paginator->items()),
             'meta' => [
                 'page' => $paginator->currentPage(),
                 'page_size' => $paginator->perPage(),
@@ -51,7 +51,7 @@ class DepartmentController extends Controller
         }
 
         return response()->json([
-            'data' => $this->format($department, true),
+            'data' => new DepartmentResource($department),
         ]);
     }
 
@@ -65,7 +65,7 @@ class DepartmentController extends Controller
         );
 
         return response()->json([
-            'data' => $this->format($department),
+            'data' => new DepartmentResource($department),
         ], 201);
     }
 
@@ -85,7 +85,7 @@ class DepartmentController extends Controller
         );
 
         return response()->json([
-            'data' => $this->format($updated),
+            'data' => new DepartmentResource($updated),
         ]);
     }
 
@@ -106,36 +106,7 @@ class DepartmentController extends Controller
         );
 
         return response()->json([
-            'data' => $this->format($updated),
+            'data' => new DepartmentResource($updated),
         ]);
     }
-
-    protected function format(Department $d, bool $includePrograms = false): array
-    {
-        $data = [
-            'id' => $d->id,
-            'code' => $d->code,
-            'name_bn' => $d->name_bn,
-            'name_en' => $d->name_en,
-            'description_bn' => $d->description_bn,
-            'description_en' => $d->description_en,
-            'sort_order' => $d->sort_order,
-            'is_active' => $d->is_active,
-            'programs_count' => $d->programs_count ?? $d->programs()->count(),
-        ];
-
-        if ($includePrograms && $d->relationLoaded('programs')) {
-            $data['programs'] = $d->programs->map(fn ($p) => [
-                'id' => $p->id,
-                'code' => $p->code,
-                'name_bn' => $p->name_bn,
-                'name_en' => $p->name_en,
-                'scheme' => $p->scheme->value,
-                'state' => $p->state->value,
-            ])->values();
-        }
-
-        return $data;
-    }
 }
-

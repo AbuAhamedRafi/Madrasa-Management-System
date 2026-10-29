@@ -5,12 +5,8 @@ namespace App\Http\Controllers\Academics;
 use App\Exceptions\AcademicDomainException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Academics\StoreAcademicOfferingRequest;
-use App\Http\Requests\Academics\StoreOfferingSectionRequest;
 use App\Http\Requests\Academics\UpdateAcademicOfferingRequest;
-use App\Http\Requests\Academics\UpdateCatalogStatusRequest;
-use App\Http\Requests\Academics\UpdateOfferingSectionRequest;
-use App\Models\AcademicOffering;
-use App\Models\OfferingSection;
+use App\Http\Resources\Academics\AcademicOfferingResource;
 use App\Repositories\Academics\AcademicOfferingRepository;
 use App\Services\Academics\AcademicOfferingService;
 use Illuminate\Http\JsonResponse;
@@ -23,7 +19,7 @@ class AcademicOfferingController extends Controller
         protected AcademicOfferingService $offeringService
     ) {}
 
-    public function indexOfferings(Request $request): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         if (! $request->filled('academic_period_id')) {
             throw new AcademicDomainException(
@@ -48,7 +44,7 @@ class AcademicOfferingController extends Controller
         );
 
         return response()->json([
-            'data' => collect($paginator->items())->map(fn (AcademicOffering $o) => $this->formatOffering($o))->values(),
+            'data' => AcademicOfferingResource::collection($paginator->items()),
             'meta' => [
                 'page' => $paginator->currentPage(),
                 'page_size' => $paginator->perPage(),
@@ -58,7 +54,7 @@ class AcademicOfferingController extends Controller
         ]);
     }
 
-    public function showOffering(int $id): JsonResponse
+    public function show(int $id): JsonResponse
     {
         $offering = $this->offeringRepository->findById($id);
         if (! $offering) {
@@ -66,11 +62,11 @@ class AcademicOfferingController extends Controller
         }
 
         return response()->json([
-            'data' => $this->formatOffering($offering),
+            'data' => new AcademicOfferingResource($offering),
         ]);
     }
 
-    public function storeOffering(StoreAcademicOfferingRequest $request): JsonResponse
+    public function store(StoreAcademicOfferingRequest $request): JsonResponse
     {
         $offering = $this->offeringService->createOffering(
             $request->validated(),
@@ -80,11 +76,11 @@ class AcademicOfferingController extends Controller
         );
 
         return response()->json([
-            'data' => $this->formatOffering($offering),
+            'data' => new AcademicOfferingResource($offering),
         ], 201);
     }
 
-    public function updateOffering(UpdateAcademicOfferingRequest $request, int $id): JsonResponse
+    public function update(UpdateAcademicOfferingRequest $request, int $id): JsonResponse
     {
         $offering = $this->offeringRepository->findById($id);
         if (! $offering) {
@@ -100,122 +96,7 @@ class AcademicOfferingController extends Controller
         );
 
         return response()->json([
-            'data' => $this->formatOffering($updated),
+            'data' => new AcademicOfferingResource($updated),
         ]);
-    }
-
-    public function showSection(int $id): JsonResponse
-    {
-        $section = $this->offeringRepository->findSectionById($id);
-        if (! $section) {
-            abort(404, 'Offering section not found.');
-        }
-
-        return response()->json([
-            'data' => $this->formatSection($section),
-        ]);
-    }
-
-    public function storeSection(StoreOfferingSectionRequest $request, int $id): JsonResponse
-    {
-        $offering = $this->offeringRepository->findById($id);
-        if (! $offering) {
-            abort(404, 'Academic offering not found.');
-        }
-
-        $section = $this->offeringService->createSection(
-            $offering,
-            $request->validated(),
-            $request->user(),
-            $request->ip(),
-            $request->attributes->get('request_id')
-        );
-
-        return response()->json([
-            'data' => $this->formatSection($section),
-        ], 201);
-    }
-
-    public function updateSection(UpdateOfferingSectionRequest $request, int $id): JsonResponse
-    {
-        $section = $this->offeringRepository->findSectionById($id);
-        if (! $section) {
-            abort(404, 'Offering section not found.');
-        }
-
-        $updated = $this->offeringService->updateSection(
-            $section,
-            $request->validated(),
-            $request->user(),
-            $request->ip(),
-            $request->attributes->get('request_id')
-        );
-
-        return response()->json([
-            'data' => $this->formatSection($updated),
-        ]);
-    }
-
-    public function updateSectionStatus(UpdateCatalogStatusRequest $request, int $id): JsonResponse
-    {
-        $section = $this->offeringRepository->findSectionById($id);
-        if (! $section) {
-            abort(404, 'Offering section not found.');
-        }
-
-        $updated = $this->offeringService->updateSectionStatus(
-            $section,
-            (bool) $request->boolean('is_active'),
-            $request->input('reason'),
-            $request->user(),
-            $request->ip(),
-            $request->attributes->get('request_id')
-        );
-
-        return response()->json([
-            'data' => $this->formatSection($updated),
-        ]);
-    }
-
-    protected function formatOffering(AcademicOffering $o): array
-    {
-        return [
-            'id' => $o->id,
-            'academic_period_id' => $o->academic_period_id,
-            'program_class_id' => $o->program_class_id,
-            'academic_track_id' => $o->academic_track_id,
-            'is_active' => $o->is_active,
-            'program_class' => $o->relationLoaded('programClass') && $o->programClass ? [
-                'id' => $o->programClass->id,
-                'code' => $o->programClass->code,
-                'name_bn' => $o->programClass->name_bn,
-                'name_en' => $o->programClass->name_en,
-                'stage_number' => $o->programClass->stage_number,
-            ] : null,
-            'track' => $o->relationLoaded('track') && $o->track ? [
-                'id' => $o->track->id,
-                'code' => $o->track->code,
-                'name_bn' => $o->track->name_bn,
-                'name_en' => $o->track->name_en,
-            ] : null,
-            'sections' => $o->relationLoaded('sections')
-                ? $o->sections->map(fn (OfferingSection $s) => $this->formatSection($s))->values()
-                : [],
-        ];
-    }
-
-    protected function formatSection(OfferingSection $s): array
-    {
-        return [
-            'id' => $s->id,
-            'academic_offering_id' => $s->academic_offering_id,
-            'offering_id' => $s->academic_offering_id,
-            'code' => $s->code,
-            'name_bn' => $s->name_bn,
-            'name_en' => $s->name_en,
-            'capacity' => $s->capacity,
-            'is_active' => $s->is_active,
-        ];
     }
 }
-

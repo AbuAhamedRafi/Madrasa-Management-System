@@ -3,188 +3,25 @@
 namespace App\Services\Academics;
 
 use App\Enums\AcademicScheme;
-use App\Enums\CohortStatus;
 use App\Enums\PeriodState;
 use App\Exceptions\AcademicDomainException;
 use App\Models\AcademicCohort;
 use App\Models\AcademicPeriod;
 use App\Models\AcademicProgram;
 use App\Models\User;
-use App\Repositories\Academics\AcademicCohortRepository;
 use App\Repositories\Academics\AcademicPeriodRepository;
-use App\Repositories\Academics\AcademicProgramRepository;
 use App\Services\AuditTrail\AuditLogger;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
-class AcademicCohortPeriodService
+class AcademicPeriodService
 {
     public function __construct(
-        protected AcademicProgramRepository $programRepository,
-        protected AcademicCohortRepository $cohortRepository,
         protected AcademicPeriodRepository $periodRepository,
         protected AuditLogger $auditLogger
     ) {}
 
-    public function createCohort(
-        array $data,
-        ?User $actor = null,
-        ?string $ip = null,
-        ?string $requestId = null
-    ): AcademicCohort {
-        $program = $this->programRepository->findById((int) $data['program_id']);
-        if (! $program) {
-            abort(404, 'Academic program not found.');
-        }
-
-        if ($program->scheme !== AcademicScheme::SESSION_BASED) {
-            throw new AcademicDomainException(
-                'INVALID_COHORT_SCHEME',
-                'Admission cohorts can only be created for SESSION_BASED programs.',
-                422,
-                ['program_id' => ['Calendar-year programs do not use admission cohorts.']]
-            );
-        }
-
-        $label = trim($data['label']);
-        if ($this->cohortRepository->findByProgramAndLabel($program->id, $label)) {
-            throw new AcademicDomainException(
-                'DUPLICATE_ACADEMIC_CODE',
-                "Cohort label '{$label}' already exists for this program.",
-                409,
-                ['label' => ["Cohort label '{$label}' already exists for this program."]]
-            );
-        }
-
-        $cohort = $this->cohortRepository->create([
-            'program_id' => $program->id,
-            'label' => $label,
-            'intake_year' => (int) $data['intake_year'],
-            'description' => $data['description'] ?? null,
-            // Explicitly never infer dates from cohort label
-            'start_date' => $data['start_date'] ?? null,
-            'end_date' => $data['end_date'] ?? null,
-            'status' => isset($data['status']) ? CohortStatus::from(strtoupper(trim($data['status']))) : CohortStatus::DRAFT,
-        ]);
-
-        $this->auditLogger->record(
-            'COHORT_CREATED',
-            $actor?->id,
-            null,
-            null,
-            $cohort->only(['id', 'program_id', 'label', 'intake_year', 'status']),
-            $ip,
-            $requestId,
-            null,
-            'AcademicCohort',
-            $cohort->id
-        );
-
-        return $cohort;
-    }
-
-    public function updateCohort(
-        AcademicCohort $cohort,
-        array $data,
-        ?User $actor = null,
-        ?string $ip = null,
-        ?string $requestId = null
-    ): AcademicCohort {
-        if ($cohort->status === CohortStatus::CLOSED) {
-            throw new AcademicDomainException(
-                'CLOSED_PERIOD',
-                'Closed cohort is read-only and cannot be edited without reopening.',
-                409
-            );
-        }
-
-        if (isset($data['program_id']) && (int) $data['program_id'] !== $cohort->program_id) {
-            throw new AcademicDomainException(
-                'PROGRAM_RELATION_MISMATCH',
-                'Cohort cannot be transferred to a different program.',
-                422
-            );
-        }
-
-        if (isset($data['label'])) {
-            $label = trim($data['label']);
-            if ($this->cohortRepository->findByProgramAndLabel($cohort->program_id, $label, $cohort->id)) {
-                throw new AcademicDomainException(
-                    'DUPLICATE_ACADEMIC_CODE',
-                    "Cohort label '{$label}' already exists for this program.",
-                    409
-                );
-            }
-            $data['label'] = $label;
-        }
-
-        $before = $cohort->only(['label', 'intake_year', 'description', 'start_date', 'end_date']);
-        $updated = $this->cohortRepository->update(
-            $cohort,
-            collect($data)->only(['label', 'intake_year', 'description', 'start_date', 'end_date'])->toArray()
-        );
-
-        $this->auditLogger->record(
-            'COHORT_UPDATED',
-            $actor?->id,
-            null,
-            $before,
-            $updated->only(['label', 'intake_year', 'description', 'start_date', 'end_date']),
-            $ip,
-            $requestId,
-            null,
-            'AcademicCohort',
-            $updated->id
-        );
-
-        return $updated;
-    }
-
-    public function updateCohortStatus(
-        AcademicCohort $cohort,
-        CohortStatus $targetStatus,
-        ?string $reason = null,
-        ?User $actor = null,
-        ?string $ip = null,
-        ?string $requestId = null
-    ): AcademicCohort {
-        if ($targetStatus === CohortStatus::CLOSED && $this->cohortRepository->hasOpenPeriods($cohort->id)) {
-            throw new AcademicDomainException(
-                'ACTIVE_DEPENDENCY_EXISTS',
-                'Cannot close cohort while it still has OPEN academic study periods.',
-                409
-            );
-        }
-
-        if (($cohort->status === CohortStatus::CLOSED || $targetStatus === CohortStatus::CLOSED) && empty(trim((string) $reason))) {
-            throw new AcademicDomainException(
-                'VALIDATION_ERROR',
-                'A reason is required when closing or reopening a cohort.',
-                422,
-                ['reason' => ['Reason is mandatory when closing or reopening a cohort.']]
-            );
-        }
-
-        $before = ['status' => $cohort->status->value];
-        $updated = $this->cohortRepository->update($cohort, ['status' => $targetStatus]);
-
-        $this->auditLogger->record(
-            'COHORT_STATUS_CHANGED',
-            $actor?->id,
-            null,
-            $before,
-            ['status' => $updated->status->value],
-            $ip,
-            $requestId,
-            $reason,
-            'AcademicCohort',
-            $updated->id
-        );
-
-        return $updated;
-    }
-
-    public function createPeriod(
+    public function create(
         array $data,
         ?User $actor = null,
         ?string $ip = null,
@@ -255,7 +92,6 @@ class AcademicCohortPeriodService
                     'lock_version' => 1,
                 ];
             } else {
-                // SESSION_BASED program
                 if (! empty($data['calendar_year'])) {
                     throw new AcademicDomainException(
                         'VALIDATION_ERROR',
@@ -305,7 +141,6 @@ class AcademicCohortPeriodService
                     );
                 }
 
-                // Validate non-overlapping dates and stage chronological order within the SAME cohort
                 $this->validateCohortStageDates($cohort->id, $studyYearNumber, $startDate, $endDate);
 
                 $attributes = [
@@ -348,7 +183,7 @@ class AcademicCohortPeriodService
         });
     }
 
-    public function updatePeriod(
+    public function update(
         AcademicPeriod $period,
         array $data,
         ?User $actor = null,
@@ -417,117 +252,6 @@ class AcademicCohortPeriodService
         return $updated;
     }
 
-    public function updatePeriodStatus(
-        int $periodId,
-        PeriodState $targetState,
-        int $lockVersion,
-        ?string $reason = null,
-        ?User $actor = null,
-        ?string $ip = null,
-        ?string $requestId = null
-    ): AcademicPeriod {
-        return DB::transaction(function () use ($periodId, $targetState, $lockVersion, $reason, $actor, $ip, $requestId) {
-            $period = AcademicPeriod::where('id', $periodId)->lockForUpdate()->first();
-            if (! $period) {
-                abort(404, 'Academic period not found.');
-            }
-
-            if ($period->lock_version !== $lockVersion) {
-                throw new AcademicDomainException(
-                    'VERSION_CONFLICT',
-                    'Academic period changed. Refresh and retry.',
-                    409
-                );
-            }
-
-            $currentState = $period->state;
-            if ($currentState === $targetState) {
-                return $period->fresh(['program', 'cohort']);
-            }
-
-            // Transition rules:
-            // DRAFT -> OPEN (requires valid active offering with active section)
-            // OPEN -> CLOSED (requires reason)
-            // CLOSED -> OPEN (requires reason)
-            if ($currentState === PeriodState::DRAFT && $targetState === PeriodState::CLOSED) {
-                throw new AcademicDomainException(
-                    'PERIOD_NOT_READY',
-                    'A DRAFT period cannot be closed directly before it has been opened.',
-                    409
-                );
-            }
-
-            if ($targetState === PeriodState::OPEN && $currentState === PeriodState::DRAFT) {
-                if (! $this->periodRepository->hasActiveOfferingWithSection($period->id)) {
-                    throw new AcademicDomainException(
-                        'PERIOD_NOT_READY',
-                        'Academic period cannot be opened until at least one active offering and active section exist.',
-                        409
-                    );
-                }
-            }
-
-            if (
-                ($currentState === PeriodState::OPEN && $targetState === PeriodState::CLOSED) ||
-                ($currentState === PeriodState::CLOSED && $targetState === PeriodState::OPEN)
-            ) {
-                if (empty(trim((string) $reason))) {
-                    throw new AcademicDomainException(
-                        'VALIDATION_ERROR',
-                        'A mandatory reason is required to close or reopen an academic period.',
-                        422,
-                        ['reason' => ['Please provide a reason for closing or reopening this academic period.']]
-                    );
-                }
-            }
-
-            // Also ensure cohort is ACTIVE when opening a session period
-            if ($targetState === PeriodState::OPEN && $period->cohort_id !== null) {
-                $cohort = AcademicCohort::where('id', $period->cohort_id)->lockForUpdate()->first();
-                if ($cohort && $cohort->status === CohortStatus::DRAFT) {
-                    $cohort->update(['status' => CohortStatus::ACTIVE]);
-                }
-            }
-
-            $before = [
-                'state' => $currentState->value,
-                'lock_version' => $period->lock_version,
-            ];
-
-            $period->update([
-                'state' => $targetState,
-                'lock_version' => $period->lock_version + 1,
-            ]);
-
-            $updated = $period->fresh(['program', 'cohort']);
-
-            $actionCode = match (true) {
-                $currentState === PeriodState::CLOSED && $targetState === PeriodState::OPEN => 'PERIOD_REOPENED',
-                $targetState === PeriodState::CLOSED => 'PERIOD_CLOSED',
-                default => 'PERIOD_OPENED',
-            };
-
-            $this->auditLogger->record(
-                $actionCode,
-                $actor?->id,
-                null,
-                $before,
-                [
-                    'state' => $updated->state->value,
-                    'lock_version' => $updated->lock_version,
-                    'reason' => $reason,
-                ],
-                $ip,
-                $requestId,
-                $reason,
-                'AcademicPeriod',
-                $updated->id
-            );
-
-            return $updated;
-        });
-    }
-
     protected function validateCohortStageDates(
         int $cohortId,
         int $studyYearNumber,
@@ -541,7 +265,6 @@ class AcademicCohortPeriodService
             $existingStart = $existing->start_date->format('Y-m-d');
             $existingEnd = $existing->end_date->format('Y-m-d');
 
-            // Check any overlap
             if ($startDate <= $existingEnd && $endDate >= $existingStart) {
                 throw new AcademicDomainException(
                     'PERIOD_DATE_CONFLICT',
@@ -550,7 +273,6 @@ class AcademicCohortPeriodService
                 );
             }
 
-            // Check stage chronological ordering
             if ($studyYearNumber > $existing->study_year_number && $startDate <= $existingEnd) {
                 throw new AcademicDomainException(
                     'PERIOD_DATE_CONFLICT',
@@ -569,4 +291,3 @@ class AcademicCohortPeriodService
         }
     }
 }
-
