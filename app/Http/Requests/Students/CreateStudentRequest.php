@@ -60,6 +60,9 @@ class CreateStudentRequest extends FormRequest
             'identifiers.*.namespace' => ['required', 'string', 'max:64'],
             'identifiers.*.value' => ['required', 'string', 'max:128'],
             'identifiers.*.issuer' => ['nullable', 'string', 'max:255'],
+
+            // Admin Override Duplicate Review Reference
+            'override_review_id' => ['nullable', 'integer', 'exists:student_duplicate_reviews,id'],
         ];
     }
 

@@ -166,6 +166,15 @@ class StudentCreationService
                 }
             }
 
+            // Link Approved Duplicate Review (if provided)
+            if (!empty($data['override_review_id'])) {
+                $review = \App\Models\StudentDuplicateReview::find($data['override_review_id']);
+                if ($review && $review->status === \App\Enums\DuplicateReviewStatus::APPROVED) {
+                    $review->student_id = $student->id;
+                    $review->save();
+                }
+            }
+
             // Log Audit
             $this->auditLogRepository->log(
                 actionCode: 'STUDENT_REGISTERED',

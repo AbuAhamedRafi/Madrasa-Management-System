@@ -13,6 +13,8 @@ use App\Http\Controllers\Academics\InstitutionController;
 use App\Http\Controllers\Academics\OfferingSectionController;
 use App\Http\Controllers\Academics\ProgramClassController;
 use App\Http\Controllers\Students\StudentController;
+use App\Http\Controllers\Students\StudentDuplicateCheckController;
+use App\Http\Controllers\Students\StudentDuplicateReviewController;
 use App\Http\Controllers\Students\StudentFinancialLookupController;
 use App\Http\Controllers\Students\StudentGuardianController;
 use App\Http\Controllers\Students\StudentIdentifierController;
@@ -77,6 +79,9 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
 
     // D03: Student & Guardian routes
     Route::prefix('v1/students')->group(function () {
+        Route::post('/check-duplicate', [StudentDuplicateCheckController::class, 'check'])->middleware('permission:students.create');
+        Route::post('/duplicate-reviews', [StudentDuplicateReviewController::class, 'store'])->middleware('permission:students.create');
+
         Route::post('/', [StudentRegistrationController::class, 'store'])->middleware('permission:students.create');
         Route::get('/lookup', [StudentFinancialLookupController::class, 'lookup'])->middleware('permission:students.financial_lookup');
         Route::get('/', [StudentController::class, 'index'])->middleware('permission:students.read');
@@ -113,6 +118,11 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
         Route::post('/roles', [RolePermissionController::class, 'storeRole'])->middleware('permission:roles.read');
         Route::get('/permissions', [RolePermissionController::class, 'permissions'])->middleware('permission:roles.read');
         Route::post('/permissions', [RolePermissionController::class, 'storePermission'])->middleware('permission:roles.read');
+
+        // D03: Admin duplicate review queue
+        Route::get('/student-duplicates', [StudentDuplicateReviewController::class, 'index'])->middleware('permission:students.review_duplicates');
+        Route::get('/student-duplicates/{id}', [StudentDuplicateReviewController::class, 'show'])->whereNumber('id')->middleware('permission:students.review_duplicates');
+        Route::post('/student-duplicates/{id}/decision', [StudentDuplicateReviewController::class, 'decide'])->whereNumber('id')->middleware('permission:students.review_duplicates');
 
         // D02: Institution profile & branding mutations
         Route::patch('/institution', [InstitutionController::class, 'update'])->middleware('permission:institution.update');
