@@ -21,3 +21,4 @@ class OfferingSectionResource extends JsonResource
         ];
     }
 }
+

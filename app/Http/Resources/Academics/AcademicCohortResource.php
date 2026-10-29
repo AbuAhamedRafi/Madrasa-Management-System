@@ -23,3 +23,4 @@ class AcademicCohortResource extends JsonResource
         ];
     }
 }
+

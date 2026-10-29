@@ -24,3 +24,4 @@ class InstitutionResource extends JsonResource
         ];
     }
 }
+

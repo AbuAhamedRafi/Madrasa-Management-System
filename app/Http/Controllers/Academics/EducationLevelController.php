@@ -111,3 +111,4 @@ class EducationLevelController extends Controller
         ]);
     }
 }
+

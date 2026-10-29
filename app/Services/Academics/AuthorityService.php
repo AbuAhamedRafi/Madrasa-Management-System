@@ -141,3 +141,4 @@ class AuthorityService
         return $updated;
     }
 }
+

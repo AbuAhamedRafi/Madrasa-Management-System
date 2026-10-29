@@ -93,3 +93,4 @@ class OfferingSectionController extends Controller
         ]);
     }
 }
+
