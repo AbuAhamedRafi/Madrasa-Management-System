@@ -32,6 +32,7 @@ class DatabaseSeeder extends Seeder
         // Seed comprehensive student and guardian sample foundation
         $this->call([
             StudentFoundationSeeder::class,
+            AdmissionsFoundationSeeder::class,
         ]);
     }
 }

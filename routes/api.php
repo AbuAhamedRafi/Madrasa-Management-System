@@ -20,6 +20,16 @@ use App\Http\Controllers\Students\StudentFinancialLookupController;
 use App\Http\Controllers\Students\StudentGuardianController;
 use App\Http\Controllers\Students\StudentIdentifierController;
 use App\Http\Controllers\Students\StudentRegistrationController;
+use App\Http\Controllers\Admissions\AdmissionsWorkbenchController;
+use App\Http\Controllers\Admissions\AdmissionsStudentSearchController;
+use App\Http\Controllers\Admissions\AdmissionsEligibilityController;
+use App\Http\Controllers\Admissions\AdmissionsCatalogController;
+use App\Http\Controllers\Admissions\SectionCapacityController;
+use App\Http\Controllers\Admissions\EnrollmentController;
+use App\Http\Controllers\Admissions\ReturningStudentController;
+use App\Http\Controllers\Admissions\SessionProgressionController;
+use App\Http\Controllers\Admissions\EnrollmentActionController;
+use App\Http\Controllers\Admissions\EnrollmentEventController;
 use App\Http\Controllers\Authentication\ActivationController;
 use App\Http\Controllers\RolePermission\RolePermissionController;
 use App\Http\Controllers\UserManagement\UserController;
@@ -187,5 +197,40 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
                 Route::patch('/sections/{id}/status', [OfferingSectionController::class, 'updateStatus'])->whereNumber('id');
             });
         });
+    });
+
+    // D04: Admissions, Re-Admission & Enrollment routes
+    Route::prefix('v1/admissions')->group(function () {
+        Route::middleware('permission:admissions.read')->group(function () {
+            Route::get('/workbench', [AdmissionsWorkbenchController::class, 'index']);
+            Route::get('/search-students', [AdmissionsStudentSearchController::class, 'index']);
+            Route::get('/students/{id}/eligibility', [AdmissionsEligibilityController::class, 'show'])->whereNumber('id');
+            Route::get('/programs/{id}/catalogs', [AdmissionsCatalogController::class, 'show'])->whereNumber('id');
+            Route::get('/sections/{id}/capacity', [SectionCapacityController::class, 'show'])->whereNumber('id');
+            Route::get('/offerings/{id}/alternatives', [SectionCapacityController::class, 'alternatives'])->whereNumber('id');
+            Route::post('/enrollments/batch-capacity-check', [SectionCapacityController::class, 'batchCheck']);
+            Route::get('/students/{id}/returning-context', [ReturningStudentController::class, 'context'])->whereNumber('id');
+            Route::get('/students/{id}/session-progression', [SessionProgressionController::class, 'show'])->whereNumber('id');
+            Route::get('/enrollments/{id}', [EnrollmentController::class, 'show'])->whereNumber('id');
+            Route::get('/enrollments/{id}/events', [EnrollmentEventController::class, 'index'])->whereNumber('id');
+        });
+
+        Route::middleware('permission:admissions.create')->group(function () {
+            Route::post('/enrollments', [EnrollmentController::class, 'store']);
+            Route::post('/enrollments/returning', [ReturningStudentController::class, 'store']);
+            Route::post('/enrollments/session-progression', [SessionProgressionController::class, 'store']);
+        });
+
+        Route::post('/enrollments/{id}/reallocate', [EnrollmentActionController::class, 'reallocate'])
+            ->whereNumber('id')
+            ->middleware('permission:admissions.reallocate');
+
+        Route::post('/enrollments/{id}/cancel', [EnrollmentActionController::class, 'cancel'])
+            ->whereNumber('id')
+            ->middleware('permission:admissions.cancel');
+
+        Route::post('/enrollments/{id}/reject', [EnrollmentActionController::class, 'reject'])
+            ->whereNumber('id')
+            ->middleware('permission:admissions.cancel');
     });
 });
