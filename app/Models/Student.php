@@ -100,6 +100,16 @@ class Student extends Model
         return $this->hasMany(StudentDuplicateReview::class, 'student_id');
     }
 
+    public function programAdmissions(): HasMany
+    {
+        return $this->hasMany(ProgramAdmission::class, 'student_id');
+    }
+
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(Enrollment::class, 'student_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

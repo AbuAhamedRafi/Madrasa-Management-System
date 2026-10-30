@@ -45,5 +45,10 @@ class AcademicOffering extends Model
         return $this->hasMany(OfferingSection::class, 'academic_offering_id')
             ->orderBy('code');
     }
+
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(Enrollment::class, 'academic_offering_id');
+    }
 }
 

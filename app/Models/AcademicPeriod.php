@@ -49,5 +49,10 @@ class AcademicPeriod extends Model
     {
         return $this->hasMany(AcademicOffering::class, 'academic_period_id');
     }
+
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(Enrollment::class, 'academic_period_id');
+    }
 }
 

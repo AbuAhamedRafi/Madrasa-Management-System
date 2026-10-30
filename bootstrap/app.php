@@ -1,6 +1,7 @@
 <?php
 
 use App\Exceptions\AcademicDomainException;
+use App\Exceptions\AdmissionsDomainException;
 use App\Exceptions\StudentDomainException;
 use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\EnsureAccountIsActive;
@@ -54,6 +55,17 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (StudentDomainException $e, Request $request) {
+            return response()->json([
+                'error' => [
+                    'code' => $e->errorCode,
+                    'message' => $e->getMessage(),
+                    'details' => empty($e->details) ? (object) [] : $e->details,
+                    'request_id' => $request->attributes->get('request_id'),
+                ],
+            ], $e->httpStatus);
+        });
+
+        $exceptions->render(function (AdmissionsDomainException $e, Request $request) {
             return response()->json([
                 'error' => [
                     'code' => $e->errorCode,

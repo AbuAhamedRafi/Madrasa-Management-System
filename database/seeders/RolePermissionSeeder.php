@@ -90,12 +90,15 @@ class RolePermissionSeeder extends Seeder
             ['key' => 'students.financial_lookup', 'module' => 'D03_Students', 'label_bn' => 'আর্থিক ফি জমার জন্য শিক্ষার্থী অনুসন্ধান', 'label_en' => 'Student financial lookup', 'display_order' => 35],
 
             // D04-D05: Admissions & Promotions
-            ['key' => 'admissions.read', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি আবেদন পরিদর্শন', 'label_en' => 'View admission applications', 'display_order' => 24],
-            ['key' => 'admissions.create', 'module' => 'D04_Admissions', 'label_bn' => 'নতুন ভর্তি আবেদন জমা', 'label_en' => 'Submit admission applications', 'display_order' => 25],
-            ['key' => 'admissions.process', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি যাচাই ও প্রক্রিয়াকরণ', 'label_en' => 'Process & verify admissions', 'display_order' => 26],
-            ['key' => 'admissions.approve', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি অনুমোদন ও রোল নির্ধারণ', 'label_en' => 'Final admission approval', 'display_order' => 27],
-            ['key' => 'admissions.manage', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি কার্যক্রম পরিচালনা', 'label_en' => 'Master admission management', 'display_order' => 28],
-            ['key' => 'promotions.read', 'module' => 'D05_Promotions', 'label_bn' => 'প্রমোশন তালিকা পরিদর্শন', 'label_en' => 'View promotion eligibility', 'display_order' => 29],
+            ['key' => 'admissions.read', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি ও এনরোলমেন্ট পরিদর্শন', 'label_en' => 'View admissions & enrollments', 'display_order' => 24],
+            ['key' => 'admissions.create', 'module' => 'D04_Admissions', 'label_bn' => 'নতুন ভর্তি ও এনরোলমেন্ট জমা', 'label_en' => 'Submit admissions & enrollments', 'display_order' => 25],
+            ['key' => 'admissions.edit', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি ও এনরোলমেন্ট সম্পাদনা', 'label_en' => 'Edit admission details', 'display_order' => 26],
+            ['key' => 'admissions.reallocate', 'module' => 'D04_Admissions', 'label_bn' => 'শাখা (Section) পুনর্বিন্যাস', 'label_en' => 'Reallocate student sections', 'display_order' => 27],
+            ['key' => 'admissions.cancel', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি ও এনরোলমেন্ট বাতিল/প্রত্যাখ্যান', 'label_en' => 'Cancel or reject enrollments', 'display_order' => 28],
+            ['key' => 'admissions.approve', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি চূড়ান্ত অনুমোদন', 'label_en' => 'Final admission approval', 'display_order' => 29],
+            ['key' => 'admissions.process', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি যাচাই ও প্রক্রিয়াকরণ', 'label_en' => 'Process & verify admissions', 'display_order' => 30],
+            ['key' => 'admissions.manage', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি কার্যক্রম পরিচালনা', 'label_en' => 'Master admission management', 'display_order' => 31],
+            ['key' => 'promotions.read', 'module' => 'D05_Promotions', 'label_bn' => 'প্রমোশন তালিকা পরিদর্শন', 'label_en' => 'View promotion eligibility', 'display_order' => 32],
             ['key' => 'promotions.manage', 'module' => 'D05_Promotions', 'label_bn' => 'প্রমোশন রুলস নির্ধারণ', 'label_en' => 'Configure promotion rules', 'display_order' => 30],
             ['key' => 'promotions.execute', 'module' => 'D05_Promotions', 'label_bn' => 'বার্ষিক প্রমোশন কার্যকরকরণ', 'label_en' => 'Execute annual promotions', 'display_order' => 31],
 
@@ -148,6 +151,7 @@ class RolePermissionSeeder extends Seeder
             'institution.read', 'academics.read',
             'students.read', 'students.create', 'students.update',
             'students.manage_guardians', 'students.manage_documents', 'students.manage_identifiers',
+            'admissions.read', 'admissions.create', 'admissions.edit', 'admissions.reallocate', 'admissions.cancel',
             'admissions.manage', 'promotions.manage',
             'payment_slips.issue',
         ];
