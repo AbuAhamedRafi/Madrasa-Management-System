@@ -24,3 +24,4 @@ class AdmissionsEligibilityController extends Controller
         return response()->json(['data' => $result]);
     }
 }
+

@@ -33,3 +33,4 @@ return new class extends Migration
         Schema::dropIfExists('enrollment_status_events');
     }
 };
+

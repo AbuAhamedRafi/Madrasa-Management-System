@@ -20,3 +20,4 @@ class EnrollmentEventController extends Controller
         return response()->json(['data' => $events]);
     }
 }
+

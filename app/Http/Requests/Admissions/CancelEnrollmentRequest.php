@@ -18,3 +18,4 @@ class CancelEnrollmentRequest extends FormRequest
         ];
     }
 }
+

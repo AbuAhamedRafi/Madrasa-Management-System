@@ -27,3 +27,4 @@ class AdmissionsCatalogController extends Controller
         return response()->json(['data' => $program]);
     }
 }
+

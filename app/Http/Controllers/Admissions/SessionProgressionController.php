@@ -82,3 +82,4 @@ class SessionProgressionController extends Controller
         ], 201);
     }
 }
+

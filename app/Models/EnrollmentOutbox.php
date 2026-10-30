@@ -36,3 +36,4 @@ class EnrollmentOutbox extends Model
         ];
     }
 }
+

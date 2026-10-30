@@ -26,3 +26,4 @@ enum EnrollmentStatus: string
         return in_array($this, [self::PENDING_BILLING, self::PENDING_PAYMENT, self::APPROVED], true);
     }
 }
+

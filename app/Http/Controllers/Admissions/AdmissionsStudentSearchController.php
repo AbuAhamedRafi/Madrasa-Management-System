@@ -83,3 +83,4 @@ class AdmissionsStudentSearchController extends Controller
         return response()->json(['data' => $data]);
     }
 }
+

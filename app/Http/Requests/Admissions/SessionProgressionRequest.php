@@ -36,3 +36,4 @@ class SessionProgressionRequest extends FormRequest
         });
     }
 }
+

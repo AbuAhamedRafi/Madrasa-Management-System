@@ -35,3 +35,4 @@ class AdmissionsDomainException extends Exception
         return new self('INVALID_STATE', $message, $httpStatus);
     }
 }
+

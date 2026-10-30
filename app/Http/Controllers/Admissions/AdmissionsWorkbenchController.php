@@ -68,3 +68,4 @@ class AdmissionsWorkbenchController extends Controller
         ]);
     }
 }
+
