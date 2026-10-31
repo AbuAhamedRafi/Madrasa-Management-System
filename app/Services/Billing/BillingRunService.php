@@ -453,7 +453,8 @@ class BillingRunService
             throw BillingDomainException::notFound('ACADEMIC_PERIOD_NOT_FOUND', 'Selected academic period not found.');
         }
 
-        if ($period->state === PeriodState::CLOSED || $period->state === PeriodState::ARCHIVED) {
+        $stateVal = $period->state instanceof PeriodState ? $period->state->value : (string) $period->state;
+        if (in_array($stateVal, ['CLOSED', 'ARCHIVED'], true)) {
             throw BillingDomainException::validation(
                 'BILLING_PERIOD_CLOSED',
                 'Cannot create or execute a billing run for a closed or archived academic period.'

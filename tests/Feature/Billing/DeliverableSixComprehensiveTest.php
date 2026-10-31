@@ -262,11 +262,11 @@ class DeliverableSixComprehensiveTest extends TestCase
 
         $admission = ProgramAdmission::create([
             'student_id' => $student->id,
-            'program_id' => $period->program_id,
-            'cohort_id' => $period->cohort_id,
-            'entry_academic_period_id' => $period->id,
+            'academic_program_id' => $period->program_id,
+            'academic_cohort_id' => $period->cohort_id,
             'entry_type' => AdmissionEntryType::REGULAR,
             'status' => AdmissionStatus::ACTIVE,
+            'entered_at' => now(),
             'created_by' => $this->admin->id,
         ]);
 
