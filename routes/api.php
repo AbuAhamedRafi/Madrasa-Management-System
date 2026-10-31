@@ -31,6 +31,14 @@ use App\Http\Controllers\Admissions\SessionProgressionController;
 use App\Http\Controllers\Admissions\EnrollmentActionController;
 use App\Http\Controllers\Admissions\EnrollmentEventController;
 use App\Http\Controllers\Authentication\ActivationController;
+use App\Http\Controllers\Billing\BillingDashboardController;
+use App\Http\Controllers\Billing\BillingRunController;
+use App\Http\Controllers\Billing\FeeAdjustmentController;
+use App\Http\Controllers\Billing\FeeCategoryController;
+use App\Http\Controllers\Billing\FeeStructureController;
+use App\Http\Controllers\Billing\InstallmentPlanController;
+use App\Http\Controllers\Billing\InvoiceController;
+use App\Http\Controllers\Billing\StudentBillingLedgerController;
 use App\Http\Controllers\Promotions\IndividualPromotionController;
 use App\Http\Controllers\Promotions\PromotionBatchController;
 use App\Http\Controllers\Promotions\PromotionItemController;
@@ -298,5 +306,104 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
         Route::get('/batches/{id}/events', [PromotionBatchController::class, 'events'])
             ->whereNumber('id')
             ->middleware('permission:promotions.audit.read');
+    });
+
+    // D06: Fee Structures, Billing & Invoice Management routes
+    Route::prefix('v1')->group(function () {
+        // 1. Billing Dashboard Summary
+        Route::get('/billing/summary', [BillingDashboardController::class, 'summary'])
+            ->middleware('permission:billing.read');
+
+        // 2-4. Fee Categories
+        Route::get('/fee-categories', [FeeCategoryController::class, 'index'])
+            ->middleware('permission:billing.config.read');
+        Route::post('/fee-categories', [FeeCategoryController::class, 'store'])
+            ->middleware('permission:billing.config.write');
+        Route::patch('/fee-categories/{id}', [FeeCategoryController::class, 'update'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.config.write');
+
+        // 5-10. Fee Structures
+        Route::get('/fee-structures', [FeeStructureController::class, 'index'])
+            ->middleware('permission:billing.config.read');
+        Route::post('/fee-structures', [FeeStructureController::class, 'store'])
+            ->middleware('permission:billing.config.write');
+        Route::get('/fee-structures/{id}', [FeeStructureController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.config.read');
+        Route::patch('/fee-structures/{id}', [FeeStructureController::class, 'update'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.config.write');
+        Route::post('/fee-structures/{id}/publish', [FeeStructureController::class, 'publish'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.config.publish');
+        Route::post('/fee-structures/{id}/archive', [FeeStructureController::class, 'archive'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.config.publish');
+
+        // 11-17. Billing Runs
+        Route::get('/billing-runs', [BillingRunController::class, 'index'])
+            ->middleware('permission:billing.read');
+        Route::post('/billing-runs/preview', [BillingRunController::class, 'preview'])
+            ->middleware('permission:billing.runs.create');
+        Route::post('/billing-runs', [BillingRunController::class, 'store'])
+            ->middleware('permission:billing.runs.create');
+        Route::get('/billing-runs/{id}', [BillingRunController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.read');
+        Route::get('/billing-runs/{id}/items', [BillingRunController::class, 'items'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.read');
+        Route::post('/billing-runs/{id}/execute', [BillingRunController::class, 'execute'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.runs.execute');
+        Route::post('/billing-runs/{id}/retry', [BillingRunController::class, 'retry'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.runs.execute');
+
+        // 18-23. Invoices
+        Route::get('/invoices', [InvoiceController::class, 'index'])
+            ->middleware('permission:billing.invoices.read');
+        Route::post('/invoices/preview', [InvoiceController::class, 'preview'])
+            ->middleware('permission:billing.invoices.create');
+        Route::post('/invoices', [InvoiceController::class, 'store'])
+            ->middleware('permission:billing.invoices.create');
+        Route::get('/invoices/{id}', [InvoiceController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.invoices.read');
+        Route::post('/invoices/{id}/issue', [InvoiceController::class, 'issue'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.invoices.issue');
+        Route::post('/invoices/{id}/void', [InvoiceController::class, 'void'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.invoices.void');
+
+        // 24-25. Installment Plans
+        Route::get('/invoices/{id}/installment-plan', [InstallmentPlanController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.installments.read');
+        Route::put('/invoices/{id}/installment-plan', [InstallmentPlanController::class, 'update'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.installments.manage');
+
+        // 26-30. Adjustment Requests
+        Route::get('/adjustment-requests', [FeeAdjustmentController::class, 'index'])
+            ->middleware('permission:billing.adjustments.read');
+        Route::post('/adjustment-requests', [FeeAdjustmentController::class, 'store'])
+            ->middleware('permission:billing.adjustments.request');
+        Route::get('/adjustment-requests/{id}', [FeeAdjustmentController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.adjustments.read');
+        Route::post('/adjustment-requests/{id}/approve', [FeeAdjustmentController::class, 'approve'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.adjustments.approve');
+        Route::post('/adjustment-requests/{id}/reject', [FeeAdjustmentController::class, 'reject'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.adjustments.approve');
+
+        // 31. Student Billing Ledger
+        Route::get('/students/{id}/billing-ledger', [StudentBillingLedgerController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.invoices.read');
     });
 });
