@@ -192,3 +192,4 @@ class PromotionsFoundationSeeder extends Seeder
         }
     }
 }
+
