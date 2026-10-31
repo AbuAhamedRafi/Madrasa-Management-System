@@ -156,6 +156,7 @@ class PromotionBatchService
             }
 
             $sourceEnrollments = $enrollmentQuery->get();
+            $eligibilityConfirmed = (bool) ($data['academic_eligibility_confirmed'] ?? false);
 
             foreach ($sourceEnrollments as $enrollment) {
                 PromotionItem::create([
@@ -164,7 +165,9 @@ class PromotionBatchService
                     'source_enrollment_id' => $enrollment->id,
                     'target_offering_section_id' => $defaultSection->id,
                     'action' => $action,
-                    'academic_eligibility_confirmed' => false,
+                    'academic_eligibility_confirmed' => $eligibilityConfirmed,
+                    'eligibility_confirmed_by' => $eligibilityConfirmed ? $actorId : null,
+                    'eligibility_confirmed_at' => $eligibilityConfirmed ? now() : null,
                     'status' => PromotionItemStatus::PENDING,
                     'attempt_count' => 0,
                 ]);
@@ -284,8 +287,8 @@ class PromotionBatchService
             $term = trim($filters['search']);
             $query->whereHas('student', function ($sq) use ($term) {
                 $sq->where('student_id', 'ILIKE', "%{$term}%")
-                   ->orWhere('full_name_en', 'ILIKE', "%{$term}%")
-                   ->orWhere('full_name_bn', 'ILIKE', "%{$term}%");
+                   ->orWhere('name_en', 'ILIKE', "%{$term}%")
+                   ->orWhere('name_bn', 'ILIKE', "%{$term}%");
             });
         }
 

@@ -293,8 +293,8 @@ class PromotionEligibilityService
             'student' => [
                 'id' => $student->id,
                 'student_id' => $student->student_id,
-                'full_name_en' => $student->full_name_en,
-                'full_name_bn' => $student->full_name_bn,
+                'name_en' => $student->name_en,
+                'name_bn' => $student->name_bn,
                 'status' => $student->status->value,
             ],
             'source_enrollment' => $sourceEnrollment ? [
