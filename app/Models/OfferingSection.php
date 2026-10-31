@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class OfferingSection extends Model
 {
@@ -28,6 +29,11 @@ class OfferingSection extends Model
     public function offering(): BelongsTo
     {
         return $this->belongsTo(AcademicOffering::class, 'academic_offering_id');
+    }
+
+    public function enrollments(): HasMany
+    {
+        return $this->hasMany(Enrollment::class, 'offering_section_id');
     }
 }
 

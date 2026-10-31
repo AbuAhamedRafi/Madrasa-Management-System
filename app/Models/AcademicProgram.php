@@ -71,5 +71,10 @@ class AcademicProgram extends Model
             ->orderByDesc('start_date')
             ->orderBy('study_year_number');
     }
+
+    public function programAdmissions(): HasMany
+    {
+        return $this->hasMany(ProgramAdmission::class, 'academic_program_id');
+    }
 }
 

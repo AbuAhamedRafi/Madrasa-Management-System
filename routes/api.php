@@ -12,7 +12,28 @@ use App\Http\Controllers\Academics\EducationLevelController;
 use App\Http\Controllers\Academics\InstitutionController;
 use App\Http\Controllers\Academics\OfferingSectionController;
 use App\Http\Controllers\Academics\ProgramClassController;
+use App\Http\Controllers\Students\StudentController;
+use App\Http\Controllers\Students\StudentDocumentController;
+use App\Http\Controllers\Students\StudentDuplicateCheckController;
+use App\Http\Controllers\Students\StudentDuplicateReviewController;
+use App\Http\Controllers\Students\StudentFinancialLookupController;
+use App\Http\Controllers\Students\StudentGuardianController;
+use App\Http\Controllers\Students\StudentIdentifierController;
+use App\Http\Controllers\Students\StudentRegistrationController;
+use App\Http\Controllers\Admissions\AdmissionsWorkbenchController;
+use App\Http\Controllers\Admissions\AdmissionsStudentSearchController;
+use App\Http\Controllers\Admissions\AdmissionsEligibilityController;
+use App\Http\Controllers\Admissions\AdmissionsCatalogController;
+use App\Http\Controllers\Admissions\SectionCapacityController;
+use App\Http\Controllers\Admissions\EnrollmentController;
+use App\Http\Controllers\Admissions\ReturningStudentController;
+use App\Http\Controllers\Admissions\SessionProgressionController;
+use App\Http\Controllers\Admissions\EnrollmentActionController;
+use App\Http\Controllers\Admissions\EnrollmentEventController;
 use App\Http\Controllers\Authentication\ActivationController;
+use App\Http\Controllers\Promotions\IndividualPromotionController;
+use App\Http\Controllers\Promotions\PromotionBatchController;
+use App\Http\Controllers\Promotions\PromotionItemController;
 use App\Http\Controllers\RolePermission\RolePermissionController;
 use App\Http\Controllers\UserManagement\UserController;
 use App\Http\Controllers\UserProfile\ProfileController;
@@ -70,6 +91,38 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
         });
     });
 
+    // D03: Student & Guardian routes
+    Route::prefix('v1/students')->group(function () {
+        Route::post('/check-duplicate', [StudentDuplicateCheckController::class, 'check'])->middleware('permission:students.create');
+        Route::post('/duplicate-reviews', [StudentDuplicateReviewController::class, 'store'])->middleware('permission:students.create');
+
+        Route::post('/', [StudentRegistrationController::class, 'store'])->middleware('permission:students.create');
+        Route::get('/lookup', [StudentFinancialLookupController::class, 'lookup'])->middleware('permission:students.financial_lookup');
+        Route::get('/', [StudentController::class, 'index'])->middleware('permission:students.read');
+        Route::get('/{id}', [StudentController::class, 'show'])->whereNumber('id')->middleware('permission:students.read');
+        Route::patch('/{id}', [StudentController::class, 'update'])->whereNumber('id')->middleware('permission:students.update');
+        Route::patch('/{id}/status', [StudentController::class, 'updateStatus'])->whereNumber('id')->middleware('permission:students.manage_status');
+
+        // Guardians sub-resource
+        Route::get('/{id}/guardians', [StudentGuardianController::class, 'index'])->whereNumber('id')->middleware('permission:students.read');
+        Route::post('/{id}/guardians', [StudentGuardianController::class, 'store'])->whereNumber('id')->middleware('permission:students.manage_guardians');
+        Route::post('/{id}/guardians/{guardianId}/primary', [StudentGuardianController::class, 'makePrimary'])->whereNumber(['id', 'guardianId'])->middleware('permission:students.manage_guardians');
+        Route::patch('/{id}/guardians/{guardianId}/consent', [StudentGuardianController::class, 'updateConsent'])->whereNumber(['id', 'guardianId'])->middleware('permission:students.manage_guardians');
+        Route::delete('/{id}/guardians/{guardianId}', [StudentGuardianController::class, 'destroy'])->whereNumber(['id', 'guardianId'])->middleware('permission:students.manage_guardians');
+
+        // Identifiers sub-resource
+        Route::get('/{id}/identifiers', [StudentIdentifierController::class, 'index'])->whereNumber('id')->middleware('permission:students.read');
+        Route::post('/{id}/identifiers', [StudentIdentifierController::class, 'store'])->whereNumber('id')->middleware('permission:students.manage_identifiers');
+        Route::delete('/{id}/identifiers/{identifierId}', [StudentIdentifierController::class, 'destroy'])->whereNumber(['id', 'identifierId'])->middleware('permission:students.manage_identifiers');
+
+        // Documents sub-resource
+        Route::get('/{id}/documents', [StudentDocumentController::class, 'index'])->whereNumber('id')->middleware('permission:students.read');
+        Route::post('/{id}/documents', [StudentDocumentController::class, 'store'])->whereNumber('id')->middleware('permission:students.manage_documents');
+        Route::get('/{id}/documents/{docId}/download', [StudentDocumentController::class, 'download'])->whereNumber(['id', 'docId'])->middleware('permission:students.read');
+        Route::post('/{id}/documents/{docId}/verify', [StudentDocumentController::class, 'verify'])->whereNumber(['id', 'docId'])->middleware('permission:students.manage_documents');
+        Route::delete('/{id}/documents/{docId}', [StudentDocumentController::class, 'destroy'])->whereNumber(['id', 'docId'])->middleware('permission:students.manage_documents');
+    });
+
     // Admin user management, role administration & D02 academic mutations
     Route::prefix('v1/admin')->group(function () {
         // D01: User & Role management
@@ -86,6 +139,11 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
         Route::post('/roles', [RolePermissionController::class, 'storeRole'])->middleware('permission:roles.read');
         Route::get('/permissions', [RolePermissionController::class, 'permissions'])->middleware('permission:roles.read');
         Route::post('/permissions', [RolePermissionController::class, 'storePermission'])->middleware('permission:roles.read');
+
+        // D03: Admin duplicate review queue
+        Route::get('/student-duplicates', [StudentDuplicateReviewController::class, 'index'])->middleware('permission:students.review_duplicates');
+        Route::get('/student-duplicates/{id}', [StudentDuplicateReviewController::class, 'show'])->whereNumber('id')->middleware('permission:students.review_duplicates');
+        Route::post('/student-duplicates/{id}/decision', [StudentDuplicateReviewController::class, 'decide'])->whereNumber('id')->middleware('permission:students.review_duplicates');
 
         // D02: Institution profile & branding mutations
         Route::patch('/institution', [InstitutionController::class, 'update'])->middleware('permission:institution.update');
@@ -142,5 +200,103 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
                 Route::patch('/sections/{id}/status', [OfferingSectionController::class, 'updateStatus'])->whereNumber('id');
             });
         });
+    });
+
+    // D04: Admissions, Re-Admission & Enrollment routes
+    Route::prefix('v1/admissions')->group(function () {
+        Route::middleware('permission:admissions.read')->group(function () {
+            Route::get('/workbench', [AdmissionsWorkbenchController::class, 'index']);
+            Route::get('/search-students', [AdmissionsStudentSearchController::class, 'index']);
+            Route::get('/students/{id}/eligibility', [AdmissionsEligibilityController::class, 'show'])->whereNumber('id');
+            Route::get('/programs/{id}/catalogs', [AdmissionsCatalogController::class, 'show'])->whereNumber('id');
+            Route::get('/sections/{id}/capacity', [SectionCapacityController::class, 'show'])->whereNumber('id');
+            Route::get('/offerings/{id}/alternatives', [SectionCapacityController::class, 'alternatives'])->whereNumber('id');
+            Route::post('/enrollments/batch-capacity-check', [SectionCapacityController::class, 'batchCheck']);
+            Route::get('/students/{id}/returning-context', [ReturningStudentController::class, 'context'])->whereNumber('id');
+            Route::get('/students/{id}/session-progression', [SessionProgressionController::class, 'show'])->whereNumber('id');
+            Route::get('/enrollments/{id}', [EnrollmentController::class, 'show'])->whereNumber('id');
+            Route::get('/enrollments/{id}/events', [EnrollmentEventController::class, 'index'])->whereNumber('id');
+        });
+
+        Route::middleware('permission:admissions.create')->group(function () {
+            Route::post('/enrollments', [EnrollmentController::class, 'store']);
+            Route::post('/enrollments/returning', [ReturningStudentController::class, 'store']);
+            Route::post('/enrollments/session-progression', [SessionProgressionController::class, 'store']);
+        });
+
+        Route::post('/enrollments/{id}/reallocate', [EnrollmentActionController::class, 'reallocate'])
+            ->whereNumber('id')
+            ->middleware('permission:admissions.reallocate');
+
+        Route::post('/enrollments/{id}/cancel', [EnrollmentActionController::class, 'cancel'])
+            ->whereNumber('id')
+            ->middleware('permission:admissions.cancel');
+
+        Route::post('/enrollments/{id}/reject', [EnrollmentActionController::class, 'reject'])
+            ->whereNumber('id')
+            ->middleware('permission:admissions.cancel');
+    });
+
+    // D05: Individual & Bulk Student Promotion routes
+    Route::prefix('v1/promotions')->group(function () {
+        // Individual promotions
+        Route::post('/individual/preview', [IndividualPromotionController::class, 'preview'])
+            ->middleware('permission:promotions.read');
+        Route::post('/individual', [IndividualPromotionController::class, 'store'])
+            ->middleware('permission:promotions.individual.create');
+
+        // Batches
+        Route::get('/batches', [PromotionBatchController::class, 'index'])
+            ->middleware('permission:promotions.read');
+        Route::post('/batches', [PromotionBatchController::class, 'store'])
+            ->middleware('permission:promotions.batches.create');
+        Route::get('/batches/{id}', [PromotionBatchController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.read');
+        Route::put('/batches/{id}', [PromotionBatchController::class, 'update'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.batches.create');
+        Route::delete('/batches/{id}', [PromotionBatchController::class, 'destroy'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.batches.create');
+
+        // Batch Items
+        Route::get('/batches/{id}/items', [PromotionItemController::class, 'index'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.read');
+        Route::put('/batches/{id}/items/{itemId}', [PromotionItemController::class, 'update'])
+            ->whereNumber(['id', 'itemId'])
+            ->middleware('permission:promotions.batches.create');
+        Route::delete('/batches/{id}/items/{itemId}', [PromotionItemController::class, 'destroy'])
+            ->whereNumber(['id', 'itemId'])
+            ->middleware('permission:promotions.batches.create');
+        Route::get('/batches/{id}/items/{itemId}/attempts', [PromotionItemController::class, 'attempts'])
+            ->whereNumber(['id', 'itemId'])
+            ->middleware('permission:promotions.audit.read');
+
+        // Batch Execution Lifecycle
+        Route::post('/batches/{id}/preview', [PromotionBatchController::class, 'preview'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.read');
+        Route::post('/batches/{id}/execute', [PromotionBatchController::class, 'execute'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.batches.execute');
+        Route::post('/batches/{id}/pause', [PromotionBatchController::class, 'pause'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.batches.pause_retry');
+        Route::post('/batches/{id}/resume', [PromotionBatchController::class, 'resume'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.batches.pause_retry');
+        Route::post('/batches/{id}/retry', [PromotionBatchController::class, 'retry'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.batches.pause_retry');
+
+        // Export and Audit
+        Route::get('/batches/{id}/export', [PromotionBatchController::class, 'export'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.export');
+        Route::get('/batches/{id}/events', [PromotionBatchController::class, 'events'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.audit.read');
     });
 });
