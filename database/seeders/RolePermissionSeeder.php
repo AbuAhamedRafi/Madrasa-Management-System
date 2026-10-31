@@ -98,9 +98,15 @@ class RolePermissionSeeder extends Seeder
             ['key' => 'admissions.approve', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি চূড়ান্ত অনুমোদন', 'label_en' => 'Final admission approval', 'display_order' => 29],
             ['key' => 'admissions.process', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি যাচাই ও প্রক্রিয়াকরণ', 'label_en' => 'Process & verify admissions', 'display_order' => 30],
             ['key' => 'admissions.manage', 'module' => 'D04_Admissions', 'label_bn' => 'ভর্তি কার্যক্রম পরিচালনা', 'label_en' => 'Master admission management', 'display_order' => 31],
-            ['key' => 'promotions.read', 'module' => 'D05_Promotions', 'label_bn' => 'প্রমোশন তালিকা পরিদর্শন', 'label_en' => 'View promotion eligibility', 'display_order' => 32],
-            ['key' => 'promotions.manage', 'module' => 'D05_Promotions', 'label_bn' => 'প্রমোশন রুলস নির্ধারণ', 'label_en' => 'Configure promotion rules', 'display_order' => 30],
-            ['key' => 'promotions.execute', 'module' => 'D05_Promotions', 'label_bn' => 'বার্ষিক প্রমোশন কার্যকরকরণ', 'label_en' => 'Execute annual promotions', 'display_order' => 31],
+            ['key' => 'promotions.read', 'module' => 'D05_Promotions', 'label_bn' => 'প্রমোশন তালিকা পরিদর্শন', 'label_en' => 'View promotion eligibility and batches', 'display_order' => 32],
+            ['key' => 'promotions.individual.create', 'module' => 'D05_Promotions', 'label_bn' => 'একক শিক্ষার্থী প্রমোশন', 'label_en' => 'Execute individual student promotion', 'display_order' => 33],
+            ['key' => 'promotions.batches.create', 'module' => 'D05_Promotions', 'label_bn' => 'বাল্ক প্রমোশন ব্যাচ তৈরি', 'label_en' => 'Create bulk promotion batches', 'display_order' => 34],
+            ['key' => 'promotions.batches.execute', 'module' => 'D05_Promotions', 'label_bn' => 'বাল্ক প্রমোশন ব্যাচ কার্যকরকরণ', 'label_en' => 'Execute bulk promotion batches', 'display_order' => 35],
+            ['key' => 'promotions.batches.pause_retry', 'module' => 'D05_Promotions', 'label_bn' => 'ব্যাচ বিরতি ও পুনরায় চেষ্টা', 'label_en' => 'Pause, resume, and retry promotion batches', 'display_order' => 36],
+            ['key' => 'promotions.audit.read', 'module' => 'D05_Promotions', 'label_bn' => 'প্রমোশন অডিট ও ইতিহাস দেখা', 'label_en' => 'View promotion audit trail and attempts', 'display_order' => 37],
+            ['key' => 'promotions.export', 'module' => 'D05_Promotions', 'label_bn' => 'প্রমোশন ফলাফল এক্সপোর্ট', 'label_en' => 'Export promotion results to CSV', 'display_order' => 38],
+            ['key' => 'promotions.manage', 'module' => 'D05_Promotions', 'label_bn' => 'প্রমোশন রুলস নির্ধারণ', 'label_en' => 'Configure promotion rules', 'display_order' => 39],
+            ['key' => 'promotions.execute', 'module' => 'D05_Promotions', 'label_bn' => 'বার্ষিক প্রমোশন কার্যকরকরণ', 'label_en' => 'Execute annual promotions', 'display_order' => 40],
 
             // D06-D07: Fees & Payment Slips
             ['key' => 'fees.catalog.read', 'module' => 'D06_Fees', 'label_bn' => 'ফি কাঠামো ও তালিকা দেখা', 'label_en' => 'View fee structures', 'display_order' => 32],
@@ -152,7 +158,10 @@ class RolePermissionSeeder extends Seeder
             'students.read', 'students.create', 'students.update',
             'students.manage_guardians', 'students.manage_documents', 'students.manage_identifiers',
             'admissions.read', 'admissions.create', 'admissions.edit', 'admissions.reallocate', 'admissions.cancel',
-            'admissions.manage', 'promotions.manage',
+            'admissions.manage',
+            'promotions.read', 'promotions.individual.create', 'promotions.batches.create',
+            'promotions.batches.execute', 'promotions.batches.pause_retry', 'promotions.audit.read',
+            'promotions.export', 'promotions.manage', 'promotions.execute',
             'payment_slips.issue',
         ];
 

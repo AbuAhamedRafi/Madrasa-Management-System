@@ -31,6 +31,9 @@ use App\Http\Controllers\Admissions\SessionProgressionController;
 use App\Http\Controllers\Admissions\EnrollmentActionController;
 use App\Http\Controllers\Admissions\EnrollmentEventController;
 use App\Http\Controllers\Authentication\ActivationController;
+use App\Http\Controllers\Promotions\IndividualPromotionController;
+use App\Http\Controllers\Promotions\PromotionBatchController;
+use App\Http\Controllers\Promotions\PromotionItemController;
 use App\Http\Controllers\RolePermission\RolePermissionController;
 use App\Http\Controllers\UserManagement\UserController;
 use App\Http\Controllers\UserProfile\ProfileController;
@@ -232,5 +235,68 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
         Route::post('/enrollments/{id}/reject', [EnrollmentActionController::class, 'reject'])
             ->whereNumber('id')
             ->middleware('permission:admissions.cancel');
+    });
+
+    // D05: Individual & Bulk Student Promotion routes
+    Route::prefix('v1/promotions')->group(function () {
+        // Individual promotions
+        Route::post('/individual/preview', [IndividualPromotionController::class, 'preview'])
+            ->middleware('permission:promotions.read');
+        Route::post('/individual', [IndividualPromotionController::class, 'store'])
+            ->middleware('permission:promotions.individual.create');
+
+        // Batches
+        Route::get('/batches', [PromotionBatchController::class, 'index'])
+            ->middleware('permission:promotions.read');
+        Route::post('/batches', [PromotionBatchController::class, 'store'])
+            ->middleware('permission:promotions.batches.create');
+        Route::get('/batches/{id}', [PromotionBatchController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.read');
+        Route::put('/batches/{id}', [PromotionBatchController::class, 'update'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.batches.create');
+        Route::delete('/batches/{id}', [PromotionBatchController::class, 'destroy'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.batches.create');
+
+        // Batch Items
+        Route::get('/batches/{id}/items', [PromotionItemController::class, 'index'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.read');
+        Route::put('/batches/{id}/items/{itemId}', [PromotionItemController::class, 'update'])
+            ->whereNumber(['id', 'itemId'])
+            ->middleware('permission:promotions.batches.create');
+        Route::delete('/batches/{id}/items/{itemId}', [PromotionItemController::class, 'destroy'])
+            ->whereNumber(['id', 'itemId'])
+            ->middleware('permission:promotions.batches.create');
+        Route::get('/batches/{id}/items/{itemId}/attempts', [PromotionItemController::class, 'attempts'])
+            ->whereNumber(['id', 'itemId'])
+            ->middleware('permission:promotions.audit.read');
+
+        // Batch Execution Lifecycle
+        Route::post('/batches/{id}/preview', [PromotionBatchController::class, 'preview'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.read');
+        Route::post('/batches/{id}/execute', [PromotionBatchController::class, 'execute'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.batches.execute');
+        Route::post('/batches/{id}/pause', [PromotionBatchController::class, 'pause'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.batches.pause_retry');
+        Route::post('/batches/{id}/resume', [PromotionBatchController::class, 'resume'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.batches.pause_retry');
+        Route::post('/batches/{id}/retry', [PromotionBatchController::class, 'retry'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.batches.pause_retry');
+
+        // Export and Audit
+        Route::get('/batches/{id}/export', [PromotionBatchController::class, 'export'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.export');
+        Route::get('/batches/{id}/events', [PromotionBatchController::class, 'events'])
+            ->whereNumber('id')
+            ->middleware('permission:promotions.audit.read');
     });
 });
