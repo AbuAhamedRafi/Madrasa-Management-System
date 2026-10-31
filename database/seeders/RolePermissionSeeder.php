@@ -109,12 +109,27 @@ class RolePermissionSeeder extends Seeder
             ['key' => 'promotions.execute', 'module' => 'D05_Promotions', 'label_bn' => 'বার্ষিক প্রমোশন কার্যকরকরণ', 'label_en' => 'Execute annual promotions', 'display_order' => 40],
 
             // D06-D07: Fees & Payment Slips
-            ['key' => 'fees.catalog.read', 'module' => 'D06_Fees', 'label_bn' => 'ফি কাঠামো ও তালিকা দেখা', 'label_en' => 'View fee structures', 'display_order' => 32],
-            ['key' => 'fees.catalog.manage', 'module' => 'D06_Fees', 'label_bn' => 'ফি রেট ও খাত নির্ধারণ', 'label_en' => 'Manage fee heads & rates', 'display_order' => 33],
-            ['key' => 'fees.discounts.manage', 'module' => 'D06_Fees', 'label_bn' => 'বৃত্তি ও বিশেষ ছাড় নির্ধারণ', 'label_en' => 'Manage fee waivers & discounts', 'display_order' => 34],
-            ['key' => 'payment_slips.read', 'module' => 'D07_PaymentSlips', 'label_bn' => 'পেমেন্ট স্লিপ পরিদর্শন', 'label_en' => 'Read payment slips', 'display_order' => 35],
-            ['key' => 'payment_slips.issue', 'module' => 'D07_PaymentSlips', 'label_bn' => 'পেমেন্ট স্লিপ ইস্যু', 'label_en' => 'Issue payment slips', 'display_order' => 36],
-            ['key' => 'payment_slips.cancel', 'module' => 'D07_PaymentSlips', 'label_bn' => 'ভুল স্লিপ বাতিলকরণ', 'label_en' => 'Void or cancel payment slips', 'display_order' => 37],
+            ['key' => 'fees.catalog.read', 'module' => 'D06_Fees', 'label_bn' => 'ফি কাঠামো ও তালিকা দেখা', 'label_en' => 'View fee structures', 'display_order' => 41],
+            ['key' => 'fees.catalog.manage', 'module' => 'D06_Fees', 'label_bn' => 'ফি রেট ও খাত নির্ধারণ', 'label_en' => 'Manage fee heads & rates', 'display_order' => 42],
+            ['key' => 'fees.discounts.manage', 'module' => 'D06_Fees', 'label_bn' => 'বৃত্তি ও বিশেষ ছাড় নির্ধারণ', 'label_en' => 'Manage fee waivers & discounts', 'display_order' => 43],
+            ['key' => 'billing.read', 'module' => 'D06_Fees', 'label_bn' => 'বিলিং সামারি ও রান দেখা', 'label_en' => 'View billing overview and runs', 'display_order' => 44],
+            ['key' => 'billing.config.read', 'module' => 'D06_Fees', 'label_bn' => 'ফি খাত ও কাঠামো পরিদর্শন', 'label_en' => 'Read fee categories and structures', 'display_order' => 45],
+            ['key' => 'billing.config.write', 'module' => 'D06_Fees', 'label_bn' => 'ফি খাত ও কাঠামো তৈরি/সম্পাদনা', 'label_en' => 'Create and edit fee categories and structures', 'display_order' => 46],
+            ['key' => 'billing.config.publish', 'module' => 'D06_Fees', 'label_bn' => 'ফি কাঠামো প্রকাশ ও আর্কাইভ', 'label_en' => 'Publish and archive fee structures', 'display_order' => 47],
+            ['key' => 'billing.runs.create', 'module' => 'D06_Fees', 'label_bn' => 'বিলিং রান প্রিভিউ ও তৈরি', 'label_en' => 'Preview and create billing runs', 'display_order' => 48],
+            ['key' => 'billing.runs.execute', 'module' => 'D06_Fees', 'label_bn' => 'বিলিং রান কার্যকর ও পুনরায় চেষ্টা', 'label_en' => 'Execute and retry billing runs', 'display_order' => 49],
+            ['key' => 'billing.invoices.read', 'module' => 'D06_Fees', 'label_bn' => 'ইনভয়েস ও খতিয়ান দেখা', 'label_en' => 'Read invoices and student billing ledger', 'display_order' => 50],
+            ['key' => 'billing.invoices.create', 'module' => 'D06_Fees', 'label_bn' => 'ম্যানুয়াল ইনভয়েস খসড়া তৈরি', 'label_en' => 'Create manual invoice drafts', 'display_order' => 51],
+            ['key' => 'billing.invoices.issue', 'module' => 'D06_Fees', 'label_bn' => 'ইনভয়েস চূড়ান্ত ইস্যু', 'label_en' => 'Issue validated draft invoices', 'display_order' => 52],
+            ['key' => 'billing.invoices.void', 'module' => 'D06_Fees', 'label_bn' => 'ইনভয়েস বাতিল (Void)', 'label_en' => 'Void uncollected invoices', 'display_order' => 53],
+            ['key' => 'billing.installments.read', 'module' => 'D06_Fees', 'label_bn' => 'কিস্তির পরিকল্পনা দেখা', 'label_en' => 'View installment schedules', 'display_order' => 54],
+            ['key' => 'billing.installments.manage', 'module' => 'D06_Fees', 'label_bn' => 'কিস্তির পরিকল্পনা তৈরি ও পরিবর্তন', 'label_en' => 'Manage installment schedules', 'display_order' => 55],
+            ['key' => 'billing.adjustments.read', 'module' => 'D06_Fees', 'label_bn' => 'ছাড় ও মওকুফ আবেদন দেখা', 'label_en' => 'View discount and waiver requests', 'display_order' => 56],
+            ['key' => 'billing.adjustments.request', 'module' => 'D06_Fees', 'label_bn' => 'ছাড় বা মওকুফ আবেদন জমা', 'label_en' => 'Request fee discounts or waivers', 'display_order' => 57],
+            ['key' => 'billing.adjustments.approve', 'module' => 'D06_Fees', 'label_bn' => 'ছাড় বা মওকুফ চূড়ান্ত অনুমোদন', 'label_en' => 'Approve or reject fee adjustments', 'display_order' => 58],
+            ['key' => 'payment_slips.read', 'module' => 'D07_PaymentSlips', 'label_bn' => 'পেমেন্ট স্লিপ পরিদর্শন', 'label_en' => 'Read payment slips', 'display_order' => 59],
+            ['key' => 'payment_slips.issue', 'module' => 'D07_PaymentSlips', 'label_bn' => 'পেমেন্ট স্লিপ ইস্যু', 'label_en' => 'Issue payment slips', 'display_order' => 60],
+            ['key' => 'payment_slips.cancel', 'module' => 'D07_PaymentSlips', 'label_bn' => 'ভুল স্লিপ বাতিলকরণ', 'label_en' => 'Void or cancel payment slips', 'display_order' => 61],
 
             // D08-D09: Cash Payments & Expenses
             ['key' => 'payments.read', 'module' => 'D08_CashPayments', 'label_bn' => 'জমা রসিদ খতিয়ান দেখা', 'label_en' => 'View cash receipts register', 'display_order' => 38],
@@ -162,6 +177,8 @@ class RolePermissionSeeder extends Seeder
             'promotions.read', 'promotions.individual.create', 'promotions.batches.create',
             'promotions.batches.execute', 'promotions.batches.pause_retry', 'promotions.audit.read',
             'promotions.export', 'promotions.manage', 'promotions.execute',
+            'billing.read', 'billing.config.read', 'billing.invoices.read',
+            'billing.installments.read', 'billing.adjustments.read', 'billing.adjustments.request',
             'payment_slips.issue',
         ];
 
@@ -179,6 +196,9 @@ class RolePermissionSeeder extends Seeder
             'profile.read', 'profile.update', 'password.change',
             'institution.read', 'academics.read',
             'students.financial_lookup',
+            'billing.read', 'billing.config.read', 'billing.invoices.read',
+            'billing.installments.read', 'billing.installments.manage',
+            'billing.adjustments.read', 'billing.adjustments.request',
             'payments.post', 'finance.reports.read',
         ];
 
