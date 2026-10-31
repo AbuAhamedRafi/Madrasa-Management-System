@@ -59,3 +59,4 @@ class BillingRun extends Model
         return $this->hasMany(BillingRunItem::class, 'billing_run_id');
     }
 }
+

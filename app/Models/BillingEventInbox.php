@@ -28,3 +28,4 @@ class BillingEventInbox extends Model
         ];
     }
 }
+

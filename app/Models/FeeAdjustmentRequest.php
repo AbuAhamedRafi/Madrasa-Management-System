@@ -55,3 +55,4 @@ class FeeAdjustmentRequest extends Model
         return $this->hasOne(FeeAdjustment::class, 'request_id');
     }
 }
+

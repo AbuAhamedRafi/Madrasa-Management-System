@@ -595,3 +595,4 @@ class InvoiceService
         return $prepared;
     }
 }
+

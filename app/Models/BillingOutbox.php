@@ -28,3 +28,4 @@ class BillingOutbox extends Model
         ];
     }
 }
+

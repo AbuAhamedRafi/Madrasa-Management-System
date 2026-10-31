@@ -10,3 +10,4 @@ enum FeeBillingType: string
     case EXAM = 'EXAM';
     case OTHER = 'OTHER';
 }
+

@@ -43,3 +43,4 @@ class FeeCategory extends Model
         return $this->hasMany(InvoiceItem::class, 'fee_category_id');
     }
 }
+

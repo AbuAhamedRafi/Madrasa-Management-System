@@ -71,3 +71,4 @@ class FeeCategoryController extends Controller
         ]);
     }
 }
+

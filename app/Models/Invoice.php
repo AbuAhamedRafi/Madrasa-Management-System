@@ -96,3 +96,4 @@ class Invoice extends Model
         return $this->hasMany(InstallmentPlan::class, 'invoice_id');
     }
 }
+

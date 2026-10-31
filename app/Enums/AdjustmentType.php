@@ -8,3 +8,4 @@ enum AdjustmentType: string
     case SCHOLARSHIP = 'SCHOLARSHIP';
     case WAIVER = 'WAIVER';
 }
+

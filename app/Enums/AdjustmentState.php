@@ -9,3 +9,4 @@ enum AdjustmentState: string
     case REJECTED = 'REJECTED';
     case APPLIED = 'APPLIED';
 }
+

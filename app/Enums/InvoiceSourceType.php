@@ -10,3 +10,4 @@ enum InvoiceSourceType: string
     case MANUAL = 'MANUAL';
     case OTHER = 'OTHER';
 }
+

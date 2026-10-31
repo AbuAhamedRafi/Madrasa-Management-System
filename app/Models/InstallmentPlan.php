@@ -42,3 +42,4 @@ class InstallmentPlan extends Model
         return $this->hasMany(InstallmentScheduleItem::class, 'installment_plan_id')->orderBy('installment_no');
     }
 }
+

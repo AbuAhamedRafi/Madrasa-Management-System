@@ -70,6 +70,7 @@ class DatabaseSeeder extends Seeder
             StudentFoundationSeeder::class,
             AdmissionsFoundationSeeder::class,
             PromotionsFoundationSeeder::class,
+            BillingFoundationSeeder::class,
         ]);
     }
 }

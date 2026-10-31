@@ -39,3 +39,4 @@ class FeeStructureItem extends Model
         return $this->belongsTo(FeeCategory::class, 'fee_category_id');
     }
 }
+

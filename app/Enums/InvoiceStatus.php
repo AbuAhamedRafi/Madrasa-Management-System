@@ -8,3 +8,4 @@ enum InvoiceStatus: string
     case ISSUED = 'ISSUED';
     case VOID = 'VOID';
 }
+

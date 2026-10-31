@@ -8,3 +8,4 @@ enum FeeStructureStatus: string
     case PUBLISHED = 'PUBLISHED';
     case ARCHIVED = 'ARCHIVED';
 }
+

@@ -65,3 +65,4 @@ class InvoiceItem extends Model
         return $this->hasMany(FeeAdjustment::class, 'invoice_item_id');
     }
 }
+

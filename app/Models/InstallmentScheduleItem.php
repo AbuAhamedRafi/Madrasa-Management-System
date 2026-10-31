@@ -29,3 +29,4 @@ class InstallmentScheduleItem extends Model
         return $this->belongsTo(InstallmentPlan::class, 'installment_plan_id');
     }
 }
+

@@ -42,3 +42,4 @@ return new class extends Migration
         Schema::dropIfExists('fee_structures');
     }
 };
+

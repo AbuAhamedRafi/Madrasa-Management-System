@@ -39,3 +39,4 @@ class InstallmentPlanController extends Controller
         ]);
     }
 }
+

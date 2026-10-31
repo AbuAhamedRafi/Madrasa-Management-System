@@ -8,3 +8,4 @@ enum InstallmentPlanStatus: string
     case REPLACED = 'REPLACED';
     case CANCELLED = 'CANCELLED';
 }
+

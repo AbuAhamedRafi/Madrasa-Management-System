@@ -72,3 +72,4 @@ class FeeStructure extends Model
         return $this->hasMany(FeeStructureItem::class, 'fee_structure_id')->orderBy('sort_order');
     }
 }
+

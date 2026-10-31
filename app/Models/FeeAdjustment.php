@@ -34,3 +34,4 @@ class FeeAdjustment extends Model
         return $this->belongsTo(InvoiceItem::class, 'invoice_item_id');
     }
 }
+

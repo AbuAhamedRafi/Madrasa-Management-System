@@ -10,3 +10,4 @@ enum FeeCadence: string
     case ANNUAL = 'ANNUAL';
     case ONE_TIME = 'ONE_TIME';
 }
+

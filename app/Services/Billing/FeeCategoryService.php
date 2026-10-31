@@ -108,3 +108,4 @@ class FeeCategoryService
         return $category->fresh();
     }
 }
+
