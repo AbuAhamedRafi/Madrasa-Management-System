@@ -73,3 +73,4 @@ class PaymentReceipt extends Model
         return $this->hasMany(PaymentNotification::class, 'payment_receipt_id');
     }
 }
+

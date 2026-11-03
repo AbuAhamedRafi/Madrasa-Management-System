@@ -73,3 +73,4 @@ class PaymentReversal extends Model
         return $this->hasMany(PaymentAllocation::class, 'payment_reversal_id');
     }
 }
+

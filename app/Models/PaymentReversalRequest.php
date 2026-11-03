@@ -65,3 +65,4 @@ class PaymentReversalRequest extends Model
         return $this->hasOne(PaymentReversal::class, 'reversal_request_id');
     }
 }
+

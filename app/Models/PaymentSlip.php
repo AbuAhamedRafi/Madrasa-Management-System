@@ -98,3 +98,4 @@ class PaymentSlip extends Model
         return $this->hasMany(PaymentReceipt::class, 'payment_slip_id');
     }
 }
+
