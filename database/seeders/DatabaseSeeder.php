@@ -71,6 +71,7 @@ class DatabaseSeeder extends Seeder
             AdmissionsFoundationSeeder::class,
             PromotionsFoundationSeeder::class,
             BillingFoundationSeeder::class,
+            CashCollectionFoundationSeeder::class,
         ]);
     }
 }
