@@ -419,7 +419,7 @@ class InvoiceService
         $total = '0.00';
         foreach ($events as $ev) {
             $amt = (string) ($ev->payload_json['allocated_amount'] ?? '0.00');
-            if (preg_match('/^\d+(\.\d{1,2})?$/', $amt)) {
+            if (preg_match('/^-?\d+(\.\d{1,2})?$/', $amt)) {
                 $total = bcadd($total, number_format((float) $amt, 2, '.', ''), 2);
             }
         }

@@ -47,9 +47,10 @@ use App\Http\Controllers\UserManagement\UserController;
 use App\Http\Controllers\UserProfile\ProfileController;
 use Illuminate\Support\Facades\Route;
 
-// Public auth endpoints
-Route::prefix('v1/auth')->group(function () {
-    Route::post('/activate', [ActivationController::class, 'activate']);
+// Public auth & verification endpoints
+Route::prefix('v1')->group(function () {
+    Route::post('/auth/activate', [ActivationController::class, 'activate']);
+    Route::get('/verify/payment-slip/{token}', [\App\Http\Controllers\Payments\PublicSlipVerificationController::class, 'verify']);
 });
 
 // Authenticated session & self-service profile endpoints
@@ -405,5 +406,101 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
         Route::get('/students/{id}/billing-ledger', [StudentBillingLedgerController::class, 'show'])
             ->whereNumber('id')
             ->middleware('permission:billing.invoices.read');
+
+        // ==========================================
+        // D07: Cash Collection, Payment Slips & Receipts
+        // ==========================================
+        // API-01: Dashboard
+        Route::get('/payments/dashboard', [\App\Http\Controllers\Payments\PaymentDashboardController::class, 'index'])
+            ->middleware('permission:payments.read');
+
+        // API-02 - API-07: Payment Slips
+        Route::get('/payment-slips', [\App\Http\Controllers\Payments\PaymentSlipController::class, 'index'])
+            ->middleware('permission:payments.slips.read');
+        Route::post('/payment-slips', [\App\Http\Controllers\Payments\PaymentSlipController::class, 'store'])
+            ->middleware('permission:payments.slips.create');
+        Route::get('/payment-slips/lookup/{slipNumber}', [\App\Http\Controllers\Payments\PaymentSlipController::class, 'lookupByNumber'])
+            ->middleware('permission:payments.slips.read');
+        Route::get('/payment-slips/{slip}', [\App\Http\Controllers\Payments\PaymentSlipController::class, 'show'])
+            ->whereNumber('slip')
+            ->middleware('permission:payments.slips.read');
+        Route::post('/payment-slips/{slip}/void', [\App\Http\Controllers\Payments\PaymentSlipController::class, 'void'])
+            ->whereNumber('slip')
+            ->middleware('permission:payments.slips.void');
+        Route::get('/payment-slips/{slip}/print', [\App\Http\Controllers\Payments\PaymentSlipController::class, 'printPayload'])
+            ->whereNumber('slip')
+            ->middleware('permission:payments.slips.read');
+
+        // API-09 - API-12: Cash Collection & Payments
+        Route::post('/payment-slips/{slip}/collect-cash', [\App\Http\Controllers\Payments\CashCollectionController::class, 'collectBySlip'])
+            ->whereNumber('slip')
+            ->middleware('permission:payments.collect');
+        Route::post('/payments/cash', [\App\Http\Controllers\Payments\CashCollectionController::class, 'store'])
+            ->middleware('permission:payments.collect');
+        Route::get('/payments', [\App\Http\Controllers\Payments\PaymentController::class, 'index'])
+            ->middleware('permission:payments.read');
+        Route::get('/payments/{payment}', [\App\Http\Controllers\Payments\PaymentController::class, 'show'])
+            ->whereNumber('payment')
+            ->middleware('permission:payments.read');
+
+        // API-13 - API-16: Payment Receipts
+        Route::get('/payments/{payment}/receipt', [\App\Http\Controllers\Payments\PaymentReceiptController::class, 'showByPayment'])
+            ->whereNumber('payment')
+            ->middleware('permission:payments.receipts.read');
+        Route::get('/payment-receipts/{receipt}', [\App\Http\Controllers\Payments\PaymentReceiptController::class, 'show'])
+            ->whereNumber('receipt')
+            ->middleware('permission:payments.receipts.read');
+        Route::get('/payment-receipts/{receipt}/print', [\App\Http\Controllers\Payments\PaymentReceiptController::class, 'printPayload'])
+            ->whereNumber('receipt')
+            ->middleware('permission:payments.receipts.read');
+        Route::post('/payment-receipts/{receipt}/reprint', [\App\Http\Controllers\Payments\PaymentReceiptController::class, 'reprint'])
+            ->whereNumber('receipt')
+            ->middleware('permission:payments.receipts.read');
+
+        // API-17 - API-18: Student Payments Ledger & Clearance
+        Route::get('/students/{student}/payments', [\App\Http\Controllers\Payments\StudentPaymentLedgerController::class, 'show'])
+            ->whereNumber('student')
+            ->middleware('permission:payments.read');
+        Route::get('/enrollments/{enrollment}/payment-clearance', [\App\Http\Controllers\Payments\AdmissionPaymentClearanceController::class, 'show'])
+            ->whereNumber('enrollment')
+            ->middleware('permission:payments.read');
+
+        // API-19 - API-23: Reversal Requests & Approval
+        Route::post('/payments/{payment}/reversal-requests', [\App\Http\Controllers\Payments\PaymentReversalController::class, 'storeRequest'])
+            ->whereNumber('payment')
+            ->middleware('permission:payments.reversals.request');
+        Route::get('/payment-reversal-requests', [\App\Http\Controllers\Payments\PaymentReversalController::class, 'index'])
+            ->middleware('permission:payments.reversals.read');
+        Route::get('/payment-reversal-requests/{reversalRequest}', [\App\Http\Controllers\Payments\PaymentReversalController::class, 'show'])
+            ->whereNumber('reversalRequest')
+            ->middleware('permission:payments.reversals.read');
+        Route::post('/payment-reversal-requests/{reversalRequest}/approve', [\App\Http\Controllers\Payments\PaymentReversalController::class, 'approve'])
+            ->whereNumber('reversalRequest')
+            ->middleware('permission:payments.reversals.approve');
+        Route::post('/payment-reversal-requests/{reversalRequest}/reject', [\App\Http\Controllers\Payments\PaymentReversalController::class, 'reject'])
+            ->whereNumber('reversalRequest')
+            ->middleware('permission:payments.reversals.approve');
+
+        // API-24 - API-28: Cashier Shifts
+        Route::get('/cashier-shifts', [\App\Http\Controllers\Payments\CashierShiftController::class, 'index'])
+            ->middleware('permission:payments.cashier.read');
+        Route::post('/cashier-shifts/open', [\App\Http\Controllers\Payments\CashierShiftController::class, 'open'])
+            ->middleware('permission:payments.cashier.reconcile');
+        Route::get('/cashier-shifts/{shift}', [\App\Http\Controllers\Payments\CashierShiftController::class, 'show'])
+            ->whereNumber('shift')
+            ->middleware('permission:payments.cashier.read');
+        Route::post('/cashier-shifts/{shift}/close', [\App\Http\Controllers\Payments\CashierShiftController::class, 'close'])
+            ->whereNumber('shift')
+            ->middleware('permission:payments.cashier.reconcile');
+        Route::post('/cashier-shifts/{shift}/reconcile', [\App\Http\Controllers\Payments\CashierShiftController::class, 'reconcile'])
+            ->whereNumber('shift')
+            ->middleware('permission:payments.cashier.approve');
+
+        // API-29: Guardian SMS Notifications
+        Route::get('/payment-notifications', [\App\Http\Controllers\Payments\PaymentNotificationController::class, 'index'])
+            ->middleware('permission:payments.notifications.read');
+        Route::post('/payment-notifications/{notification}/retry', [\App\Http\Controllers\Payments\PaymentNotificationController::class, 'retry'])
+            ->whereNumber('notification')
+            ->middleware('permission:payments.notifications.retry');
     });
 });
