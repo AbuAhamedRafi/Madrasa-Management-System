@@ -14,7 +14,7 @@ return new class extends Migration
             $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
             $table->foreignId('student_id')->constrained('students')->cascadeOnDelete();
             $table->foreignId('enrollment_id')->nullable()->constrained('enrollments')->nullOnDelete();
-            $table->foreignId('academic_year_id')->constrained('academic_years')->cascadeOnDelete();
+            $table->foreignId('academic_period_id')->constrained('academic_periods')->cascadeOnDelete();
             $table->string('status', 32)->default('UNPAID'); // UNPAID, PARTIALLY_COLLECTED, COLLECTED, EXPIRED, VOIDED, SUPERSEDED
             $table->decimal('slip_amount', 12, 2);
             $table->decimal('collected_amount', 12, 2)->default(0.00);

@@ -15,7 +15,7 @@ return new class extends Migration
             $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
             $table->foreignId('student_id')->constrained('students')->cascadeOnDelete();
             $table->foreignId('enrollment_id')->nullable()->constrained('enrollments')->nullOnDelete();
-            $table->foreignId('academic_year_id')->constrained('academic_years')->cascadeOnDelete();
+            $table->foreignId('academic_period_id')->constrained('academic_periods')->cascadeOnDelete();
             $table->foreignId('cashier_shift_id')->constrained('cashier_shifts')->cascadeOnDelete();
             $table->string('payment_method', 32)->default('CASH');
             $table->string('status', 32)->default('POSTED'); // POSTED, REVERSED

@@ -131,6 +131,22 @@ class RolePermissionSeeder extends Seeder
             ['key' => 'payment_slips.issue', 'module' => 'D07_PaymentSlips', 'label_bn' => 'পেমেন্ট স্লিপ ইস্যু', 'label_en' => 'Issue payment slips', 'display_order' => 60],
             ['key' => 'payment_slips.cancel', 'module' => 'D07_PaymentSlips', 'label_bn' => 'ভুল স্লিপ বাতিলকরণ', 'label_en' => 'Void or cancel payment slips', 'display_order' => 61],
 
+            // D07: Cash Collection, Payment Slips & Receipts
+            ['key' => 'payments.slips.read', 'module' => 'D07_CashCollection', 'label_bn' => 'পেমেন্ট স্লিপ ও কিউআর যাচাই', 'label_en' => 'Read payment slips and verification', 'display_order' => 62],
+            ['key' => 'payments.slips.create', 'module' => 'D07_CashCollection', 'label_bn' => 'নতুন পেমেন্ট স্লিপ ইস্যু', 'label_en' => 'Issue new payment slips', 'display_order' => 63],
+            ['key' => 'payments.slips.void', 'module' => 'D07_CashCollection', 'label_bn' => 'পেমেন্ট স্লিপ বাতিলকরণ', 'label_en' => 'Void payment slips', 'display_order' => 64],
+            ['key' => 'payments.collect', 'module' => 'D07_CashCollection', 'label_bn' => 'নগদ অর্থ জমা গ্রহণ', 'label_en' => 'Collect cash payments', 'display_order' => 65],
+            ['key' => 'payments.receipts.read', 'module' => 'D07_CashCollection', 'label_bn' => 'মানি রসিদ পরিদর্শন ও প্রিন্ট', 'label_en' => 'Read and print payment receipts', 'display_order' => 66],
+            ['key' => 'payments.cashier.read', 'module' => 'D07_CashCollection', 'label_bn' => 'ক্যাশিয়ার শিফট বিবরণী', 'label_en' => 'Read cashier shifts', 'display_order' => 67],
+            ['key' => 'payments.cashier.reconcile', 'module' => 'D07_CashCollection', 'label_bn' => 'ক্যাশিয়ার শিফট খোলা ও বন্ধ', 'label_en' => 'Open and close own cashier shift', 'display_order' => 68],
+            ['key' => 'payments.cashier.approve', 'module' => 'D07_CashCollection', 'label_bn' => 'ক্যাশ সমন্বয় অনুমোদন', 'label_en' => 'Approve cashier shift variance', 'display_order' => 69],
+            ['key' => 'payments.cashier.manage', 'module' => 'D07_CashCollection', 'label_bn' => 'কাউন্টার ও শিফট ব্যবস্থাপনা', 'label_en' => 'Manage cashier counters and shifts', 'display_order' => 70],
+            ['key' => 'payments.reversals.read', 'module' => 'D07_CashCollection', 'label_bn' => 'পেমেন্ট রিভার্সাল তালিকা', 'label_en' => 'Read payment reversals', 'display_order' => 71],
+            ['key' => 'payments.reversals.request', 'module' => 'D07_CashCollection', 'label_bn' => 'পেমেন্ট রিভার্সাল আবেদন', 'label_en' => 'Request payment reversal', 'display_order' => 72],
+            ['key' => 'payments.reversals.approve', 'module' => 'D07_CashCollection', 'label_bn' => 'পেমেন্ট রিভার্সাল চূড়ান্ত অনুমোদন', 'label_en' => 'Approve payment reversals', 'display_order' => 73],
+            ['key' => 'payments.notifications.read', 'module' => 'D07_CashCollection', 'label_bn' => 'অভিভাবক এসএমএস আউটবক্স দেখা', 'label_en' => 'Read guardian SMS outbox', 'display_order' => 74],
+            ['key' => 'payments.notifications.retry', 'module' => 'D07_CashCollection', 'label_bn' => 'ব্যর্থ এসএমএস পুনরায় প্রেরণ', 'label_en' => 'Retry failed SMS notifications', 'display_order' => 75],
+
             // D08-D09: Cash Payments & Expenses
             ['key' => 'payments.read', 'module' => 'D08_CashPayments', 'label_bn' => 'জমা রসিদ খতিয়ান দেখা', 'label_en' => 'View cash receipts register', 'display_order' => 38],
             ['key' => 'payments.post', 'module' => 'D08_CashPayments', 'label_bn' => 'নগদ জমা গ্রহণ (ক্যাশ কাউন্টার)', 'label_en' => 'Accept & post cash payments', 'display_order' => 39],
@@ -180,6 +196,7 @@ class RolePermissionSeeder extends Seeder
             'billing.read', 'billing.config.read', 'billing.invoices.read',
             'billing.installments.read', 'billing.adjustments.read', 'billing.adjustments.request',
             'payment_slips.issue',
+            'payments.slips.read', 'payments.slips.create',
         ];
 
         foreach ($staffPermissions as $permKey) {
@@ -199,6 +216,10 @@ class RolePermissionSeeder extends Seeder
             'billing.read', 'billing.config.read', 'billing.invoices.read',
             'billing.installments.read', 'billing.installments.manage',
             'billing.adjustments.read', 'billing.adjustments.request',
+            'payments.read', 'payments.slips.read', 'payments.slips.void', 'payments.collect',
+            'payments.receipts.read', 'payments.cashier.read', 'payments.cashier.reconcile',
+            'payments.reversals.read', 'payments.reversals.request',
+            'payments.notifications.read', 'payments.notifications.retry',
             'payments.post', 'finance.reports.read',
         ];
 
