@@ -5,23 +5,15 @@ namespace Database\Seeders;
 use App\Enums\CashierShiftStatus;
 use App\Enums\InvoiceStatus;
 use App\Enums\PaymentSlipStatus;
-use App\Enums\PaymentStatus;
-use App\Enums\ReceiptStatus;
 use App\Models\AcademicPeriod;
 use App\Models\CashierShift;
 use App\Models\Invoice;
-use App\Models\Payment;
-use App\Models\PaymentAllocation;
-use App\Models\PaymentNotification;
-use App\Models\PaymentReceipt;
 use App\Models\PaymentSlip;
-use App\Models\Student;
 use App\Models\User;
+use App\Services\Billing\InvoiceService;
 use App\Services\Payments\PaymentSequenceService;
 use App\Services\Payments\SlipVerificationTokenService;
-use Carbon\Carbon;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
 
 class CashCollectionFoundationSeeder extends Seeder
 {
@@ -29,11 +21,10 @@ class CashCollectionFoundationSeeder extends Seeder
     {
         $sequenceService = app(PaymentSequenceService::class);
         $tokenService = app(SlipVerificationTokenService::class);
+        $invoiceService = app(InvoiceService::class);
 
         $accountsUser = User::where('email', 'like', '%accounts%')->first()
             ?? User::first();
-        $adminUser = User::where('email', 'like', '%admin%')->first()
-            ?? $accountsUser;
 
         $period = AcademicPeriod::first();
         if (!$period || !$accountsUser) {
@@ -53,44 +44,47 @@ class CashCollectionFoundationSeeder extends Seeder
                 'opening_float_amount' => 500.00,
                 'expected_cash_amount' => 500.00,
             ]);
-        } else {
-            $shift = $existingShift;
         }
 
-        // 2. Find an ISSUED invoice with positive balance
+        // 2. Find an ISSUED invoice with positive net_amount
         $invoice = Invoice::with(['items', 'student'])
             ->where('status', InvoiceStatus::ISSUED->value)
-            ->where('balance_amount', '>', 0)
+            ->where('net_amount', '>', 0)
             ->first();
 
         if ($invoice) {
-            // Seed a sample PaymentSlip
-            $slipNumber = $sequenceService->nextNumber('PS', 'payment_slips', 'slip_number');
-            $slipToken = $tokenService->generateToken('slip', 0, $slipNumber);
+            $collected = $invoiceService->getVerifiedCollectedAmount($invoice->id);
+            $balance = bcsub((string) $invoice->net_amount, (string) $collected, 2);
 
-            $slip = PaymentSlip::firstOrCreate(
-                ['slip_number' => $slipNumber],
-                [
-                    'invoice_id' => $invoice->id,
-                    'student_id' => $invoice->student_id,
-                    'enrollment_id' => $invoice->enrollment_id,
-                    'academic_period_id' => $invoice->academic_period_id,
-                    'status' => PaymentSlipStatus::UNPAID,
-                    'slip_amount' => $invoice->balance_amount,
-                    'collected_amount' => 0.00,
-                    'remaining_amount' => $invoice->balance_amount,
-                    'expires_at' => now()->addDays(7),
-                    'verification_token_hash' => $slipToken['hash'],
-                    'verification_token_encrypted' => $slipToken['encrypted'],
-                    'snapshot_payload' => [
-                        'invoice' => ['invoice_number' => $invoice->invoice_number],
-                        'student' => ['name_bn' => $invoice->student?->name_bn],
-                    ],
-                    'print_count' => 1,
-                    'issued_by' => $accountsUser->id,
-                    'issued_at' => now(),
-                ]
-            );
+            if (bccomp($balance, '0.00', 2) > 0) {
+                // Seed a sample PaymentSlip
+                $slipNumber = $sequenceService->nextNumber('PS', 'payment_slips', 'slip_number');
+                $slipToken = $tokenService->generateToken('slip', 0, $slipNumber);
+
+                PaymentSlip::firstOrCreate(
+                    ['slip_number' => $slipNumber],
+                    [
+                        'invoice_id' => $invoice->id,
+                        'student_id' => $invoice->student_id,
+                        'enrollment_id' => $invoice->enrollment_id,
+                        'academic_period_id' => $invoice->academic_period_id,
+                        'status' => PaymentSlipStatus::UNPAID,
+                        'slip_amount' => $balance,
+                        'collected_amount' => 0.00,
+                        'remaining_amount' => $balance,
+                        'expires_at' => now()->addDays(7),
+                        'verification_token_hash' => $slipToken['hash'],
+                        'verification_token_encrypted' => $slipToken['encrypted'],
+                        'snapshot_payload' => [
+                            'invoice' => ['invoice_number' => $invoice->invoice_number],
+                            'student' => ['name_bn' => $invoice->student?->name_bn],
+                        ],
+                        'print_count' => 1,
+                        'issued_by' => $accountsUser->id,
+                        'issued_at' => now(),
+                    ]
+                );
+            }
         }
     }
 }
