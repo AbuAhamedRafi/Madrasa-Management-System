@@ -2,33 +2,20 @@
 
 namespace Database\Seeders;
 
-use App\Enums\AdjustmentState;
-use App\Enums\AdjustmentType;
-use App\Enums\BillingRunItemStatus;
-use App\Enums\BillingRunStatus;
-use App\Enums\BillingRunType;
 use App\Enums\FeeBillingType;
-use App\Enums\FeeCadence;
 use App\Enums\FeeStructureStatus;
-use App\Enums\InstallmentPlanStatus;
-use App\Enums\InvoiceSourceType;
-use App\Enums\InvoiceStatus;
 use App\Models\AcademicPeriod;
-use App\Models\AcademicProgram;
-use App\Models\BillingRun;
-use App\Models\BillingRunItem;
 use App\Models\Enrollment;
-use App\Models\FeeAdjustment;
 use App\Models\FeeAdjustmentRequest;
 use App\Models\FeeCategory;
 use App\Models\FeeStructure;
-use App\Models\FeeStructureItem;
-use App\Models\InstallmentPlan;
-use App\Models\InstallmentScheduleItem;
 use App\Models\Invoice;
-use App\Models\InvoiceItem;
-use App\Models\ProgramClass;
 use App\Models\User;
+use App\Services\Billing\BillingRunService;
+use App\Services\Billing\EnrollmentBillingIntegrationService;
+use App\Services\Billing\FeeAdjustmentService;
+use App\Services\Billing\FeeStructureService;
+use App\Services\Billing\InstallmentPlanService;
 use Illuminate\Database\Seeder;
 
 class BillingFoundationSeeder extends Seeder
@@ -46,61 +33,61 @@ class BillingFoundationSeeder extends Seeder
                 'code' => 'ADM',
                 'name_bn' => 'ভর্তি ফি',
                 'name_en' => 'Admission Fee',
-                'billing_type' => FeeBillingType::ONE_TIME,
-                'default_cadence' => FeeCadence::ONCE,
-                'is_mandatory_default' => true,
+                'billing_type' => FeeBillingType::ADMISSION,
+                'description_bn' => 'নতুন ও পুনঃভর্তির জন্য বাধ্যতামূলক ভর্তি ফি',
+                'description_en' => 'Mandatory admission fee for new and returning enrollments',
                 'is_active' => true,
-                'sort_order' => 10,
+                'created_by' => $adminId,
             ],
             [
                 'code' => 'SESSION',
                 'name_bn' => 'সেশন ও উন্নয়ন ফি',
                 'name_en' => 'Session & Development Fee',
                 'billing_type' => FeeBillingType::ONE_TIME,
-                'default_cadence' => FeeCadence::ANNUAL,
-                'is_mandatory_default' => true,
+                'description_bn' => 'বার্ষিক সেশন ও ক্যাম্পাস উন্নয়ন ফি',
+                'description_en' => 'Annual session and campus development fee',
                 'is_active' => true,
-                'sort_order' => 20,
+                'created_by' => $adminId,
             ],
             [
                 'code' => 'TUIT',
                 'name_bn' => 'মাসিক টিউশন ফি',
                 'name_en' => 'Monthly Tuition Fee',
                 'billing_type' => FeeBillingType::RECURRING,
-                'default_cadence' => FeeCadence::MONTHLY,
-                'is_mandatory_default' => true,
+                'description_bn' => 'নিয়মিত মাসিক পাঠদান ফি',
+                'description_en' => 'Recurring monthly tuition charge',
                 'is_active' => true,
-                'sort_order' => 30,
+                'created_by' => $adminId,
             ],
             [
                 'code' => 'EXAM',
                 'name_bn' => 'পরীক্ষা ফি',
                 'name_en' => 'Examination Fee',
-                'billing_type' => FeeBillingType::EVENT_BASED,
-                'default_cadence' => FeeCadence::TERM,
-                'is_mandatory_default' => true,
+                'billing_type' => FeeBillingType::EXAM,
+                'description_bn' => 'সাময়িক ও বার্ষিক পরীক্ষা ফি',
+                'description_en' => 'Term and annual examination fee',
                 'is_active' => true,
-                'sort_order' => 40,
+                'created_by' => $adminId,
             ],
             [
                 'code' => 'LIB',
                 'name_bn' => 'গ্রন্থাগার ফি',
                 'name_en' => 'Library Fee',
                 'billing_type' => FeeBillingType::ONE_TIME,
-                'default_cadence' => FeeCadence::ANNUAL,
-                'is_mandatory_default' => false,
+                'description_bn' => 'বার্ষিক গ্রন্থাগার ব্যবহার ফি',
+                'description_en' => 'Annual library usage fee',
                 'is_active' => true,
-                'sort_order' => 50,
+                'created_by' => $adminId,
             ],
             [
                 'code' => 'LEGACY_ARCH',
                 'name_bn' => 'পুরাতন বিবিধ খাত (আর্কাইভ)',
                 'name_en' => 'Legacy Misc Charge (Archived)',
-                'billing_type' => FeeBillingType::EVENT_BASED,
-                'default_cadence' => FeeCadence::AD_HOC,
-                'is_mandatory_default' => false,
+                'billing_type' => FeeBillingType::OTHER,
+                'description_bn' => 'আর্কাইভকৃত পুরাতন ফি খাত',
+                'description_en' => 'Archived legacy miscellaneous charge',
                 'is_active' => false,
-                'sort_order' => 90,
+                'created_by' => $adminId,
             ],
         ];
 
@@ -112,324 +99,153 @@ class BillingFoundationSeeder extends Seeder
             );
         }
 
-        // 2. Seed Published Fee Structures across active periods & classes
+        // 2. Seed Published Fee Structures across active periods using FeeStructureService
+        /** @var FeeStructureService $structureService */
+        $structureService = app(FeeStructureService::class);
+
         $periods = AcademicPeriod::with('program')->get();
         foreach ($periods as $period) {
-            $classes = ProgramClass::where('program_id', $period->program_id)->get();
-            foreach ($classes as $pClass) {
-                $structCode = sprintf('FS-%s-%d-V1', strtoupper($pClass->code), $period->id);
-                $structure = FeeStructure::firstOrCreate(
-                    [
-                        'program_id' => $period->program_id,
-                        'academic_period_id' => $period->id,
-                        'program_class_id' => $pClass->id,
-                        'version_no' => 1,
+            $exists = FeeStructure::where('program_id', $period->program_id)
+                ->where('academic_period_id', $period->id)
+                ->whereNull('program_class_id')
+                ->whereNull('academic_offering_id')
+                ->where('status', FeeStructureStatus::PUBLISHED)
+                ->exists();
+
+            if (!$exists) {
+                $draft = $structureService->createDraft([
+                    'program_id' => $period->program_id,
+                    'academic_period_id' => $period->id,
+                    'effective_from' => $period->start_date ? $period->start_date->format('Y-m-d') : '2026-01-01',
+                    'effective_to' => $period->end_date ? $period->end_date->format('Y-m-d') : '2027-12-31',
+                    'notes' => 'Seeded program-period standard published fee structure',
+                    'items' => [
+                        [
+                            'fee_category_id' => $cats['ADM']->id,
+                            'amount' => '1500.00',
+                            'cadence' => 'PER_ENROLLMENT',
+                            'admission_required' => true,
+                        ],
+                        [
+                            'fee_category_id' => $cats['SESSION']->id,
+                            'amount' => '1000.00',
+                            'cadence' => 'ANNUAL',
+                            'admission_required' => true,
+                        ],
+                        [
+                            'fee_category_id' => $cats['TUIT']->id,
+                            'amount' => '500.00',
+                            'cadence' => 'MONTHLY',
+                            'admission_required' => false,
+                        ],
                     ],
-                    [
-                        'code' => $structCode,
-                        'name_bn' => $pClass->name_bn . ' — ' . ($period->label ?? 'ফি কাঠামো'),
-                        'name_en' => $pClass->name_en . ' — Standard Fee Structure',
-                        'status' => FeeStructureStatus::PUBLISHED,
-                        'effective_from' => $period->start_date ?? '2026-01-01',
-                        'effective_to' => $period->end_date ?? '2027-12-31',
-                        'published_at' => now(),
-                        'published_by' => $adminId,
-                        'lock_version' => 1,
-                        'notes' => 'Seeded published fee structure for D06',
-                    ]
-                );
+                ], $adminId);
 
-                if ($structure->items()->count() === 0) {
-                    FeeStructureItem::create([
-                        'fee_structure_id' => $structure->id,
-                        'fee_category_id' => $cats['ADM']->id,
-                        'amount' => '1500.00',
-                        'cadence' => FeeCadence::ONCE,
-                        'is_mandatory' => true,
-                        'applies_on_admission' => true,
-                        'applies_on_promotion' => false,
-                        'applies_monthly' => false,
-                        'due_day_of_month' => 15,
-                        'sort_order' => 10,
-                    ]);
-                    FeeStructureItem::create([
-                        'fee_structure_id' => $structure->id,
-                        'fee_category_id' => $cats['SESSION']->id,
-                        'amount' => '1000.00',
-                        'cadence' => FeeCadence::ANNUAL,
-                        'is_mandatory' => true,
-                        'applies_on_admission' => true,
-                        'applies_on_promotion' => true,
-                        'applies_monthly' => false,
-                        'due_day_of_month' => 15,
-                        'sort_order' => 20,
-                    ]);
-                    FeeStructureItem::create([
-                        'fee_structure_id' => $structure->id,
-                        'fee_category_id' => $cats['TUIT']->id,
-                        'amount' => '500.00',
-                        'cadence' => FeeCadence::MONTHLY,
-                        'is_mandatory' => true,
-                        'applies_on_admission' => false,
-                        'applies_on_promotion' => false,
-                        'applies_monthly' => true,
-                        'due_day_of_month' => 15,
-                        'sort_order' => 30,
-                    ]);
-                }
+                $structureService->publishStructure($draft->id, $adminId);
             }
         }
 
-        // 3. Seed Admission Invoices for existing enrollments
-        $enrollments = Enrollment::with(['offering', 'period'])->take(8)->get();
-        $seq = 1;
-        $firstIssuedInvoice = null;
-        $secondIssuedInvoice = null;
+        // 3. Seed Admission Invoices for existing enrollments using EnrollmentBillingIntegrationService
+        /** @var EnrollmentBillingIntegrationService $enrollmentBilling */
+        $enrollmentBilling = app(EnrollmentBillingIntegrationService::class);
 
+        $enrollments = Enrollment::with(['offering', 'period'])->take(6)->get();
         foreach ($enrollments as $enr) {
-            $classId = $enr->offering?->program_class_id
-                ?? ProgramClass::where('program_id', $enr->period?->program_id)->value('id');
-            if (!$classId) {
-                continue;
-            }
-
-            $structure = FeeStructure::where('academic_period_id', $enr->academic_period_id)
-                ->where('program_class_id', $classId)
-                ->first();
-
-            $sourceRef = 'SEED-ADM-ENR-' . $enr->id;
-            $inv = Invoice::where('enrollment_id', $enr->id)
-                ->where('source_type', InvoiceSourceType::ADMISSION)
-                ->where('source_reference', $sourceRef)
-                ->first();
-
-            if (!$inv) {
-                $invNo = sprintf('INV-2026-%06d', 9000 + $seq);
-                $inv = Invoice::create([
-                    'invoice_number' => $invNo,
-                    'student_id' => $enr->student_id,
-                    'enrollment_id' => $enr->id,
-                    'academic_period_id' => $enr->academic_period_id,
-                    'program_class_id' => $classId,
-                    'offering_section_id' => $enr->offering_section_id,
-                    'fee_structure_id' => $structure?->id,
-                    'source_type' => InvoiceSourceType::ADMISSION,
-                    'source_reference' => $sourceRef,
-                    'billing_month' => null,
-                    'issue_date' => '2026-01-10',
-                    'due_date' => '2026-01-25',
-                    'status' => InvoiceStatus::ISSUED,
-                    'subtotal_amount' => '2500.00',
-                    'adjustment_total_amount' => '0.00',
-                    'net_payable_amount' => '2500.00',
-                    'currency' => 'BDT',
-                    'issued_by' => $adminId,
-                    'issued_at' => now(),
-                    'lock_version' => 1,
-                    'notes' => 'Seeded admission invoice',
-                ]);
-
-                InvoiceItem::create([
-                    'invoice_id' => $inv->id,
-                    'fee_category_id' => $cats['ADM']->id,
-                    'description_bn' => 'ভর্তি ফি',
-                    'description_en' => 'Admission Fee',
-                    'quantity' => 1,
-                    'unit_amount' => '1500.00',
-                    'gross_amount' => '1500.00',
-                    'adjustment_amount' => '0.00',
-                    'net_amount' => '1500.00',
-                ]);
-
-                InvoiceItem::create([
-                    'invoice_id' => $inv->id,
-                    'fee_category_id' => $cats['SESSION']->id,
-                    'description_bn' => 'সেশন ও উন্নয়ন ফি',
-                    'description_en' => 'Session & Development Fee',
-                    'quantity' => 1,
-                    'unit_amount' => '1000.00',
-                    'gross_amount' => '1000.00',
-                    'adjustment_amount' => '0.00',
-                    'net_amount' => '1000.00',
-                ]);
-            }
-
-            if ($seq === 1) {
-                $firstIssuedInvoice = $inv;
-            } elseif ($seq === 2) {
-                $secondIssuedInvoice = $inv;
-            }
-            $seq++;
-        }
-
-        // 4. Seed Installment Plan on $firstIssuedInvoice
-        if ($firstIssuedInvoice && !$firstIssuedInvoice->activeInstallmentPlan()->exists()) {
-            $plan = InstallmentPlan::create([
-                'invoice_id' => $firstIssuedInvoice->id,
-                'version_no' => 1,
-                'status' => InstallmentPlanStatus::ACTIVE,
-                'total_scheduled_amount' => $firstIssuedInvoice->net_payable_amount,
-                'created_by' => $adminId,
-                'approved_by' => $adminId,
-            ]);
-
-            InstallmentScheduleItem::create([
-                'installment_plan_id' => $plan->id,
-                'installment_no' => 1,
-                'due_date' => '2026-02-05',
-                'amount' => '1500.00',
-                'notes' => '1st Installment (Admission)',
-            ]);
-            InstallmentScheduleItem::create([
-                'installment_plan_id' => $plan->id,
-                'installment_no' => 2,
-                'due_date' => '2026-03-05',
-                'amount' => '1000.00',
-                'notes' => '2nd Installment (Session)',
-            ]);
-        }
-
-        // 5. Seed Approved & Pending Adjustment Requests
-        if ($firstIssuedInvoice) {
-            $firstItem = $firstIssuedInvoice->items()->first();
-            if ($firstItem && $firstItem->adjustmentRequests()->count() === 0) {
-                FeeAdjustmentRequest::create([
-                    'invoice_id' => $firstIssuedInvoice->id,
-                    'invoice_item_id' => $firstItem->id,
-                    'adjustment_type' => AdjustmentType::WAIVER,
-                    'requested_amount' => '500.00',
-                    'reason' => 'অনাথ ও মেধাবী শিক্ষার্থীর জন্য ভর্তি ফি আংশিক মওকুফ আবেদন',
-                    'state' => AdjustmentState::PENDING_APPROVAL,
-                    'requested_by' => $staffId,
-                    'lock_version' => 1,
-                ]);
-            }
-        }
-
-        if ($secondIssuedInvoice) {
-            $secItem = $secondIssuedInvoice->items()->first();
-            if ($secItem && $secItem->adjustmentRequests()->count() === 0) {
-                $approvedReq = FeeAdjustmentRequest::create([
-                    'invoice_id' => $secondIssuedInvoice->id,
-                    'invoice_item_id' => $secItem->id,
-                    'adjustment_type' => AdjustmentType::SCHOLARSHIP,
-                    'requested_amount' => '300.00',
-                    'reason' => 'বার্ষিক মেধা বৃত্তি ছাড় অনুমোদন',
-                    'state' => AdjustmentState::APPROVED,
-                    'requested_by' => $staffId,
-                    'reviewed_by' => $adminId,
-                    'reviewed_at' => now(),
-                    'review_notes' => 'মেধা তালিকা যাচাইপূর্বক অনুমোদিত',
-                    'lock_version' => 2,
-                ]);
-
-                FeeAdjustment::create([
-                    'adjustment_request_id' => $approvedReq->id,
-                    'invoice_id' => $secondIssuedInvoice->id,
-                    'invoice_item_id' => $secItem->id,
-                    'adjustment_type' => AdjustmentType::SCHOLARSHIP,
-                    'applied_amount' => '300.00',
-                    'applied_by' => $adminId,
-                    'applied_at' => now(),
-                ]);
-
-                $secItem->update([
-                    'adjustment_amount' => '300.00',
-                    'net_amount' => '1200.00',
-                ]);
-                $secondIssuedInvoice->update([
-                    'adjustment_total_amount' => '300.00',
-                    'net_payable_amount' => '2200.00',
-                ]);
-            }
-        }
-
-        // 6. Seed Completed Monthly Tuition Billing Run (RUN-2026-0001)
-        $firstPeriod = AcademicPeriod::where('calendar_year', 2026)->first();
-        if ($firstPeriod && !BillingRun::where('run_code', 'RUN-2026-0001')->exists()) {
-            $run = BillingRun::create([
-                'run_code' => 'RUN-2026-0001',
-                'type' => BillingRunType::MONTHLY_TUITION,
-                'academic_period_id' => $firstPeriod->id,
-                'program_class_id' => null,
-                'offering_section_id' => null,
-                'billing_month' => '2026-10-01',
-                'due_date' => '2026-10-15',
-                'status' => BillingRunStatus::COMPLETED,
-                'target_student_count' => 3,
-                'processed_count' => 3,
-                'success_count' => 3,
-                'skipped_count' => 0,
-                'failed_count' => 0,
-                'total_invoiced_amount' => '1500.00',
-                'initiated_by' => $adminId,
-                'executed_at' => now(),
-                'completed_at' => now(),
-                'lock_version' => 2,
-                'notes' => 'Seeded October 2026 Monthly Tuition Billing Run',
-            ]);
-
-            $periodEnrollments = Enrollment::with('offering')
-                ->where('academic_period_id', $firstPeriod->id)
-                ->take(3)
-                ->get();
-
-            $mSeq = 1;
-            foreach ($periodEnrollments as $pEnr) {
-                $pClassId = $pEnr->offering?->program_class_id
-                    ?? ProgramClass::where('program_id', $firstPeriod->program_id)->value('id');
-                if (!$pClassId) {
-                    continue;
+            $hasInvoice = Invoice::where('enrollment_id', $enr->id)->exists();
+            if (!$hasInvoice) {
+                try {
+                    $enrollmentBilling->consumeEnrollmentSubmitted([
+                        'event_id' => 'seed-enr-submitted-' . $enr->id,
+                        'enrollment_id' => $enr->id,
+                        'actor_id' => $adminId,
+                    ]);
+                } catch (\Throwable $e) {
+                    // Ignore if period closed or already processed
                 }
+            }
+        }
 
-                $mInv = Invoice::create([
-                    'invoice_number' => sprintf('INV-2026-%06d', 9500 + $mSeq),
-                    'student_id' => $pEnr->student_id,
-                    'enrollment_id' => $pEnr->id,
-                    'academic_period_id' => $firstPeriod->id,
-                    'program_class_id' => $pClassId,
-                    'offering_section_id' => $pEnr->offering_section_id,
-                    'fee_structure_id' => null,
-                    'source_type' => InvoiceSourceType::MONTHLY_RUN,
-                    'source_reference' => 'RUN:RUN-2026-0001:2026-10',
-                    'billing_month' => '2026-10-01',
-                    'issue_date' => '2026-10-01',
+        // 4. Seed Installment Plan on the first issued invoice
+        /** @var InstallmentPlanService $installmentService */
+        $installmentService = app(InstallmentPlanService::class);
+        $firstInvoice = Invoice::where('status', 'ISSUED')->orderBy('id')->first();
+        if ($firstInvoice && !$firstInvoice->activeInstallmentPlan()->exists()) {
+            try {
+                $net = (float) $firstInvoice->net_amount;
+                $firstHalf = number_format(floor(($net / 2) * 100) / 100, 2, '.', '');
+                $secondHalf = number_format($net - (float) $firstHalf, 2, '.', '');
+
+                $installmentService->replacePlan($firstInvoice->id, [
+                    'items' => [
+                        ['due_date' => '2026-11-05', 'scheduled_amount' => $firstHalf],
+                        ['due_date' => '2026-12-05', 'scheduled_amount' => $secondHalf],
+                    ],
+                ], $adminId);
+            } catch (\Throwable $e) {
+                // Ignore if already exists
+            }
+        }
+
+        // 5. Seed Pending & Approved Waiver Requests
+        /** @var FeeAdjustmentService $adjustmentService */
+        $adjustmentService = app(FeeAdjustmentService::class);
+        $issuedInvoices = Invoice::with('items')->where('status', 'ISSUED')->orderBy('id')->take(2)->get();
+
+        if ($issuedInvoices->count() >= 1) {
+            $inv1 = $issuedInvoices[0];
+            $item1 = $inv1->items->first();
+            if ($item1 && !FeeAdjustmentRequest::where('invoice_item_id', $item1->id)->exists()) {
+                try {
+                    $adjustmentService->requestAdjustment([
+                        'invoice_item_id' => $item1->id,
+                        'adjustment_type' => 'WAIVER',
+                        'requested_amount' => '300.00',
+                        'reason' => 'অনাথ ও মেধাবী শিক্ষার্থীর জন্য ভর্তি ফি আংশিক মওকুফ আবেদন',
+                    ], $staffId);
+                } catch (\Throwable $e) {
+                }
+            }
+        }
+
+        if ($issuedInvoices->count() >= 2) {
+            $inv2 = $issuedInvoices[1];
+            $item2 = $inv2->items->first();
+            if ($item2 && !FeeAdjustmentRequest::where('invoice_item_id', $item2->id)->exists()) {
+                try {
+                    $req2 = $adjustmentService->requestAdjustment([
+                        'invoice_item_id' => $item2->id,
+                        'adjustment_type' => 'SCHOLARSHIP',
+                        'requested_amount' => '250.00',
+                        'reason' => 'বার্ষিক মেধা বৃত্তি ছাড় অনুমোদন',
+                    ], $staffId);
+
+                    if ($staffId !== $adminId) {
+                        $adjustmentService->approveRequest($req2->id, [
+                            'reason' => 'মেধা তালিকা যাচাইপূর্বক অনুমোদিত',
+                        ], $adminId);
+                    }
+                } catch (\Throwable $e) {
+                }
+            }
+        }
+
+        // 6. Seed a Monthly Tuition Billing Run
+        /** @var BillingRunService $runService */
+        $runService = app(BillingRunService::class);
+        $openPeriod = AcademicPeriod::where('state', 'OPEN')->where('calendar_year', 2026)->first();
+        if ($openPeriod && \App\Models\BillingRun::count() === 0) {
+            try {
+                $run = $runService->createRun([
+                    'type' => 'MONTHLY_TUITION',
+                    'academic_period_id' => $openPeriod->id,
+                    'billing_month' => '2026-10',
                     'due_date' => '2026-10-15',
-                    'status' => InvoiceStatus::ISSUED,
-                    'subtotal_amount' => '500.00',
-                    'adjustment_total_amount' => '0.00',
-                    'net_payable_amount' => '500.00',
-                    'currency' => 'BDT',
-                    'issued_by' => $adminId,
-                    'issued_at' => now(),
-                    'lock_version' => 1,
-                ]);
+                    'notes' => 'Seeded October 2026 Monthly Tuition Billing Run',
+                ], $adminId);
 
-                InvoiceItem::create([
-                    'invoice_id' => $mInv->id,
-                    'fee_category_id' => $cats['TUIT']->id,
-                    'description_bn' => 'মাসিক টিউশন ফি (2026-10)',
-                    'description_en' => 'Monthly Tuition Fee (2026-10)',
-                    'quantity' => 1,
-                    'unit_amount' => '500.00',
-                    'gross_amount' => '500.00',
-                    'adjustment_amount' => '0.00',
-                    'net_amount' => '500.00',
-                ]);
-
-                BillingRunItem::create([
-                    'billing_run_id' => $run->id,
-                    'student_id' => $pEnr->student_id,
-                    'enrollment_id' => $pEnr->id,
-                    'invoice_id' => $mInv->id,
-                    'status' => BillingRunItemStatus::ISSUED,
-                    'expected_amount' => '500.00',
-                    'processed_at' => now(),
-                ]);
-
-                $mSeq++;
+                $runService->executeRun($run->id, $adminId);
+            } catch (\Throwable $e) {
             }
         }
     }
 }
-

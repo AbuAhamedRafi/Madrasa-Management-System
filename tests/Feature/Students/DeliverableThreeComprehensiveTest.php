@@ -499,11 +499,11 @@ class DeliverableThreeComprehensiveTest extends TestCase
         $this->assertTrue(Schema::hasTable('student_duplicate_reviews'));
         $this->assertTrue(Schema::hasTable('student_id_sequences'));
 
-        // 2. Future deliverable tables (D04 enrollments, D06 fees, D07 payments) do NOT exist yet
+        // 2. Future deliverable tables (D07 payments) do NOT exist yet (D06 invoices introduced in D06)
         $this->assertFalse(Schema::hasTable('student_enrollments'));
         $this->assertFalse(Schema::hasTable('section_assignments'));
         $this->assertFalse(Schema::hasTable('fee_liabilities'));
-        $this->assertFalse(Schema::hasTable('invoices'));
+        $this->assertTrue(Schema::hasTable('invoices'));
         $this->assertFalse(Schema::hasTable('cash_slips'));
 
         // 3. Verify single-table migrations rule: No migration file contains multiple Schema::create calls
