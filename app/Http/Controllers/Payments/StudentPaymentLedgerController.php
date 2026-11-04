@@ -19,8 +19,6 @@ class StudentPaymentLedgerController extends Controller
 
     public function show(Student $student): JsonResponse
     {
-        $this->authorize('payments.read');
-
         $invoices = Invoice::with('items')
             ->where('student_id', $student->id)
             ->orderByDesc('id')
@@ -35,9 +33,9 @@ class StudentPaymentLedgerController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        $totalBilled = $invoices->sum(fn($i) => (float) $i->total_amount);
+        $totalBilled = $invoices->sum(fn($i) => (float) $i->gross_amount);
         $totalPaid = $payments->where('status.value', 'POSTED')->sum(fn($p) => (float) $p->amount_received);
-        $currentOutstanding = max(0.00, $invoices->sum(fn($i) => (float) $i->balance_amount));
+        $currentOutstanding = max(0.00, $invoices->sum(fn($i) => (float) $i->net_amount) - $totalPaid);
 
         // Latest enrollment clearance
         $activeEnrollment = Enrollment::where('student_id', $student->id)->orderByDesc('id')->first();
@@ -65,4 +63,3 @@ class StudentPaymentLedgerController extends Controller
         ]);
     }
 }
-

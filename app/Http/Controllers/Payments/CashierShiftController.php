@@ -16,8 +16,6 @@ class CashierShiftController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $this->authorize('payments.cashier.read');
-
         $query = CashierShift::with(['cashier', 'reconciler'])->orderByDesc('id');
 
         if ($request->filled('status')) {
@@ -45,8 +43,6 @@ class CashierShiftController extends Controller
 
     public function open(Request $request): JsonResponse
     {
-        $this->authorize('payments.cashier.reconcile');
-
         $validated = $request->validate([
             'opening_float_amount' => 'nullable|numeric|min:0.00',
             'counter_code' => 'nullable|string|max:64',
@@ -63,8 +59,6 @@ class CashierShiftController extends Controller
 
     public function show(CashierShift $shift): JsonResponse
     {
-        $this->authorize('payments.cashier.read');
-
         return response()->json([
             'success' => true,
             'data' => $shift->load(['cashier', 'reconciler', 'events.actor', 'payments']),
@@ -73,8 +67,6 @@ class CashierShiftController extends Controller
 
     public function close(CashierShift $shift, Request $request): JsonResponse
     {
-        $this->authorize('payments.cashier.reconcile');
-
         $validated = $request->validate([
             'counted_cash_amount' => 'required|numeric|min:0.00',
             'denomination_breakdown' => 'nullable|array',
@@ -93,8 +85,6 @@ class CashierShiftController extends Controller
 
     public function reconcile(CashierShift $shift, Request $request): JsonResponse
     {
-        $this->authorize('payments.cashier.approve');
-
         $validated = $request->validate([
             'reconciliation_notes' => 'nullable|string|max:500',
         ]);
@@ -108,4 +98,3 @@ class CashierShiftController extends Controller
         ]);
     }
 }
-

@@ -8,8 +8,8 @@ use App\Models\InvoiceItem;
 use App\Models\PaymentSlip;
 use App\Models\User;
 use App\Services\AuditTrail\AuditLogService;
+use App\Services\Billing\InvoiceService;
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -18,6 +18,7 @@ class PaymentSlipService
     public function __construct(
         protected PaymentSequenceService $sequenceService,
         protected SlipVerificationTokenService $tokenService,
+        protected InvoiceService $invoiceService,
         protected AuditLogService $auditLogService
     ) {}
 
@@ -29,7 +30,6 @@ class PaymentSlipService
         return DB::transaction(function () use ($data, $actor) {
             $invoiceId = (int) $data['invoice_id'];
 
-            // 1. Lock invoice FOR UPDATE
             /** @var Invoice|null $invoice */
             $invoice = Invoice::query()->where('id', $invoiceId)->lockForUpdate()->first();
             if (!$invoice) {
@@ -39,14 +39,17 @@ class PaymentSlipService
             }
 
             // Invariant: Must be in ISSUED status
-            if ($invoice->status->value !== 'ISSUED') {
+            $statusVal = $invoice->status->value ?? $invoice->status;
+            if ($statusVal !== 'ISSUED') {
                 throw ValidationException::withMessages([
                     'invoice_id' => ['INVOICE_NOT_PAYABLE_STATE: Invoice status must be ISSUED.'],
                 ]);
             }
 
             // Invariant: Balance must be > 0.00
-            $balance = (float) $invoice->balance_amount;
+            $verifiedCollected = $this->invoiceService->getVerifiedCollectedAmount($invoice->id);
+            $balance = (float) bcsub((string) $invoice->net_amount, (string) $verifiedCollected, 2);
+
             if ($balance <= 0.0) {
                 throw ValidationException::withMessages([
                     'invoice_id' => ['INVOICE_ZERO_BALANCE: Invoice is fully paid.'],
@@ -87,11 +90,13 @@ class PaymentSlipService
                 'invoice' => [
                     'id' => $invoice->id,
                     'invoice_number' => $invoice->invoice_number,
-                    'total_amount' => (string) $invoice->total_amount,
-                    'paid_amount' => (string) $invoice->paid_amount,
-                    'balance_amount' => (string) $invoice->balance_amount,
-                    'issue_date' => $invoice->issue_date?->toDateString(),
-                    'due_date' => $invoice->due_date?->toDateString(),
+                    'gross_amount' => (string) $invoice->gross_amount,
+                    'adjustment_amount' => (string) $invoice->adjustment_amount,
+                    'net_amount' => (string) $invoice->net_amount,
+                    'verified_collected' => (string) $verifiedCollected,
+                    'balance_amount' => (string) number_format($balance, 2, '.', ''),
+                    'issued_at' => $invoice->issued_at?->toIso8601String(),
+                    'due_at' => $invoice->due_at,
                 ],
                 'student' => [
                     'id' => $invoice->student_id,
@@ -105,13 +110,11 @@ class PaymentSlipService
                 ],
                 'items' => $items->map(fn($item) => [
                     'id' => $item->id,
-                    'name' => $item->name,
-                    'name_bn' => $item->name_bn,
+                    'description_bn' => $item->description_bn,
+                    'description_en' => $item->description_en,
                     'gross_amount' => (string) $item->gross_amount,
                     'discount_amount' => (string) $item->discount_amount,
                     'net_amount' => (string) $item->net_amount,
-                    'paid_amount' => (string) $item->paid_amount,
-                    'balance_amount' => (string) $item->balance_amount,
                     'admission_required' => (bool) $item->admission_required,
                 ])->toArray(),
             ];
@@ -121,7 +124,7 @@ class PaymentSlipService
 
             $expiresAt = !empty($data['expires_at'])
                 ? Carbon::parse($data['expires_at'])
-                : ($invoice->due_date ? Carbon::parse($invoice->due_date)->endOfDay() : null);
+                : ($invoice->due_at ? Carbon::parse($invoice->due_at)->endOfDay() : null);
 
             $slip = PaymentSlip::create([
                 'slip_number' => $slipNumber,
@@ -227,4 +230,3 @@ class PaymentSlipService
         });
     }
 }
-

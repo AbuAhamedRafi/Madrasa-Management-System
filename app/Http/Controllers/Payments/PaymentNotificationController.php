@@ -16,8 +16,6 @@ class PaymentNotificationController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $this->authorize('payments.notifications.read');
-
         $query = PaymentNotification::with(['student', 'guardian', 'receipt', 'lastRetriedBy'])
             ->orderByDesc('id');
 
@@ -46,8 +44,6 @@ class PaymentNotificationController extends Controller
 
     public function retry(PaymentNotification $notification, Request $request): JsonResponse
     {
-        $this->authorize('payments.notifications.retry');
-
         $retried = $this->notificationService->retryNotification($notification, $request->user());
 
         return response()->json([
@@ -57,4 +53,3 @@ class PaymentNotificationController extends Controller
         ]);
     }
 }
-

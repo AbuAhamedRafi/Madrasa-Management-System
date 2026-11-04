@@ -17,6 +17,7 @@ use App\Models\PaymentSlip;
 use App\Models\User;
 use App\Services\AuditTrail\AuditLogService;
 use App\Services\Billing\BillingLedgerReadService;
+use App\Services\Billing\InvoiceService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -31,6 +32,7 @@ class CashCollectionService
         protected AdmissionPaymentClearanceService $admissionClearanceService,
         protected GuardianPaymentNotificationService $notificationService,
         protected BillingLedgerReadService $billingLedgerReadService,
+        protected InvoiceService $invoiceService,
         protected AuditLogService $auditLogService
     ) {}
 
@@ -115,7 +117,8 @@ class CashCollectionService
                 ]);
             }
 
-            $invoiceBalance = (float) $lockedInvoice->balance_amount;
+            $verifiedCollected = $this->invoiceService->getVerifiedCollectedAmount($lockedInvoice->id);
+            $invoiceBalance = (float) bcsub((string) $lockedInvoice->net_amount, (string) $verifiedCollected, 2);
             $slipRemaining = (float) $lockedSlip->remaining_amount;
 
             if ($amountReceived > $slipRemaining || $amountReceived > $invoiceBalance) {
@@ -157,7 +160,14 @@ class CashCollectionService
                 'request_id' => request()->header('X-Request-Id', Str::uuid()->toString()),
             ]);
 
-            // 5. Allocate Cash to Invoice Items: Priority to mandatory admission items, then earliest item id
+            // 5. Compute line-item balances from historical allocations
+            $allocatedItemSums = DB::table('payment_allocations')
+                ->where('invoice_id', $lockedInvoice->id)
+                ->select('invoice_item_id', DB::raw("SUM(CASE WHEN direction = 'CREDIT' THEN allocated_amount ELSE -allocated_amount END) as total_paid"))
+                ->groupBy('invoice_item_id')
+                ->pluck('total_paid', 'invoice_item_id')
+                ->all();
+
             $remainingToAllocate = $amountReceived;
             $sortedItems = $lockedItems->sort(function ($a, $b) {
                 if ($a->admission_required !== $b->admission_required) {
@@ -172,7 +182,9 @@ class CashCollectionService
                     break;
                 }
 
-                $itemBal = (float) $item->balance_amount;
+                $alreadyPaid = (float) ($allocatedItemSums[$item->id] ?? 0.00);
+                $itemBal = max(0.00, round((float) $item->net_amount - $alreadyPaid, 2));
+
                 if ($itemBal <= 0.0) {
                     continue;
                 }
@@ -182,10 +194,6 @@ class CashCollectionService
 
                 $itemBalanceBefore = $itemBal;
                 $itemBalanceAfter = round($itemBal - $allocAmount, 2);
-
-                $item->paid_amount = round((float) $item->paid_amount + $allocAmount, 2);
-                $item->balance_amount = $itemBalanceAfter;
-                $item->save();
 
                 PaymentAllocation::create([
                     'payment_id' => $payment->id,
@@ -204,13 +212,7 @@ class CashCollectionService
                 $itemAllocationsMap[$item->id] = (string) number_format($allocAmount, 2, '.', '');
             }
 
-            // 6. Sync D06 Invoice & Billing Event
-            $newPaid = round((float) $lockedInvoice->paid_amount + $amountReceived, 2);
-            $newBal = round((float) $lockedInvoice->total_amount - $newPaid, 2);
-            $lockedInvoice->paid_amount = $newPaid;
-            $lockedInvoice->balance_amount = max(0.00, $newBal);
-            $lockedInvoice->save();
-
+            // 6. Sync D06 Billing Event
             $eventId = Str::uuid()->toString();
             $this->billingLedgerReadService->consumePaymentAllocated(
                 eventId: $eventId,
@@ -366,4 +368,3 @@ class CashCollectionService
         return $result;
     }
 }
-

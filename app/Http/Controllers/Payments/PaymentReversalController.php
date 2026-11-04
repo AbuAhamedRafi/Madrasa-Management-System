@@ -17,8 +17,6 @@ class PaymentReversalController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $this->authorize('payments.reversals.read');
-
         $query = PaymentReversalRequest::with(['payment.receipt', 'invoice', 'student', 'requester', 'reviewer', 'reversal'])
             ->orderByDesc('id');
 
@@ -43,8 +41,6 @@ class PaymentReversalController extends Controller
 
     public function storeRequest(Payment $payment, Request $request): JsonResponse
     {
-        $this->authorize('payments.reversals.request');
-
         $validated = $request->validate([
             'reason_category' => 'nullable|string|in:DUPLICATE_POSTING,WRONG_STUDENT_OR_INVOICE,CASH_COUNT_ERROR,DATA_ENTRY_ERROR,OTHER',
             'reason_details' => 'required|string|min:10|max:1000',
@@ -61,8 +57,6 @@ class PaymentReversalController extends Controller
 
     public function show(PaymentReversalRequest $reversalRequest): JsonResponse
     {
-        $this->authorize('payments.reversals.read');
-
         return response()->json([
             'success' => true,
             'data' => $reversalRequest->load(['payment.receipt', 'invoice', 'student', 'requester', 'reviewer', 'reversal.approver']),
@@ -71,8 +65,6 @@ class PaymentReversalController extends Controller
 
     public function approve(PaymentReversalRequest $reversalRequest, Request $request): JsonResponse
     {
-        $this->authorize('payments.reversals.approve');
-
         $validated = $request->validate([
             'notes' => 'nullable|string|max:500',
         ]);
@@ -88,8 +80,6 @@ class PaymentReversalController extends Controller
 
     public function reject(PaymentReversalRequest $reversalRequest, Request $request): JsonResponse
     {
-        $this->authorize('payments.reversals.approve');
-
         $validated = $request->validate([
             'notes' => 'nullable|string|max:500',
         ]);
@@ -103,4 +93,3 @@ class PaymentReversalController extends Controller
         ]);
     }
 }
-

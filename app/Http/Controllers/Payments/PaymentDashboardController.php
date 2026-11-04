@@ -16,8 +16,6 @@ class PaymentDashboardController extends Controller
 {
     public function index(): JsonResponse
     {
-        $this->authorize('payments.read');
-
         $today = Carbon::today();
 
         $todayCollections = Payment::where('status', 'POSTED')
@@ -55,4 +53,3 @@ class PaymentDashboardController extends Controller
         ]);
     }
 }
-

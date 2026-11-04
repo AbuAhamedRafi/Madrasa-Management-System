@@ -17,8 +17,6 @@ class CashCollectionController extends Controller
 
     public function collectBySlip(PaymentSlip $slip, Request $request): JsonResponse
     {
-        $this->authorize('payments.collect');
-
         $validated = $request->validate([
             'amount_received' => 'nullable|numeric|min:0.01',
             'cash_tendered_amount' => 'nullable|numeric|min:0.01',
@@ -35,8 +33,6 @@ class CashCollectionController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->authorize('payments.collect');
-
         $validated = $request->validate([
             'payment_slip_id' => 'required|integer|exists:payment_slips,id',
             'amount_received' => 'nullable|numeric|min:0.01',
@@ -53,4 +49,3 @@ class CashCollectionController extends Controller
         return response()->json($result, 201);
     }
 }
-

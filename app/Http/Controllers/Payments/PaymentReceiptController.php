@@ -19,8 +19,6 @@ class PaymentReceiptController extends Controller
 
     public function showByPayment(Payment $payment): JsonResponse
     {
-        $this->authorize('payments.receipts.read');
-
         $receipt = PaymentReceipt::with(['student', 'invoice.items', 'payment.collector', 'paymentSlip'])
             ->where('payment_id', $payment->id)
             ->firstOrFail();
@@ -33,8 +31,6 @@ class PaymentReceiptController extends Controller
 
     public function show(PaymentReceipt $receipt): JsonResponse
     {
-        $this->authorize('payments.receipts.read');
-
         return response()->json([
             'success' => true,
             'data' => $receipt->load(['student', 'invoice.items', 'payment.collector', 'paymentSlip']),
@@ -43,8 +39,6 @@ class PaymentReceiptController extends Controller
 
     public function printPayload(PaymentReceipt $receipt, Request $request): JsonResponse
     {
-        $this->authorize('payments.receipts.read');
-
         $receipt->increment('print_count');
         $receipt->update(['last_printed_at' => now()]);
 
@@ -65,8 +59,6 @@ class PaymentReceiptController extends Controller
 
     public function reprint(PaymentReceipt $receipt, Request $request): JsonResponse
     {
-        $this->authorize('payments.receipts.read');
-
         $validated = $request->validate([
             'reason' => 'required|string|min:5|max:500',
         ]);
@@ -96,4 +88,3 @@ class PaymentReceiptController extends Controller
         ]);
     }
 }
-

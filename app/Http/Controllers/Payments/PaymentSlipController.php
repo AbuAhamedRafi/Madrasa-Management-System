@@ -20,8 +20,6 @@ class PaymentSlipController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $this->authorize('payments.slips.read');
-
         $query = PaymentSlip::with(['student', 'invoice', 'academicPeriod', 'issuer'])
             ->orderByDesc('id');
 
@@ -66,8 +64,6 @@ class PaymentSlipController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $this->authorize('payments.slips.create');
-
         $validated = $request->validate([
             'invoice_id' => 'required|integer|exists:invoices,id',
             'slip_amount' => 'nullable|numeric|min:0.01',
@@ -87,8 +83,6 @@ class PaymentSlipController extends Controller
 
     public function show(PaymentSlip $slip): JsonResponse
     {
-        $this->authorize('payments.slips.read');
-
         return response()->json([
             'success' => true,
             'data' => $slip->load(['student', 'invoice.items', 'academicPeriod', 'issuer', 'payments.receipt']),
@@ -97,8 +91,6 @@ class PaymentSlipController extends Controller
 
     public function void(PaymentSlip $slip, Request $request): JsonResponse
     {
-        $this->authorize('payments.slips.void');
-
         $validated = $request->validate([
             'reason' => 'required|string|min:5|max:500',
         ]);
@@ -114,8 +106,6 @@ class PaymentSlipController extends Controller
 
     public function lookupByNumber(string $slipNumber): JsonResponse
     {
-        $this->authorize('payments.slips.read');
-
         $slip = PaymentSlip::with(['student', 'invoice.items', 'academicPeriod'])
             ->where('slip_number', $slipNumber)
             ->first();
@@ -137,8 +127,6 @@ class PaymentSlipController extends Controller
 
     public function printPayload(PaymentSlip $slip, Request $request): JsonResponse
     {
-        $this->authorize('payments.slips.read');
-
         $this->slipService->recordPrint($slip, $request->user());
 
         return response()->json([
@@ -158,4 +146,3 @@ class PaymentSlipController extends Controller
         ]);
     }
 }
-

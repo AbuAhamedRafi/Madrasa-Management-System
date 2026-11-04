@@ -11,8 +11,6 @@ class PaymentController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $this->authorize('payments.read');
-
         $query = Payment::with(['student', 'invoice', 'paymentSlip', 'receipt', 'collector', 'cashierShift'])
             ->orderByDesc('id');
 
@@ -61,8 +59,6 @@ class PaymentController extends Controller
 
     public function show(Payment $payment): JsonResponse
     {
-        $this->authorize('payments.read');
-
         return response()->json([
             'success' => true,
             'data' => $payment->load([
@@ -79,4 +75,3 @@ class PaymentController extends Controller
         ]);
     }
 }
-

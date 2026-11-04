@@ -15,19 +15,24 @@ class PaymentSequenceService
         $year = (int) date('Y');
         $prefixPattern = sprintf('%s-%d-%%', $prefix, $year);
 
-        // Lock existing records for this prefix/year to find max sequence safely
-        $maxRecord = DB::table($table)
+        $records = DB::table($table)
             ->where($column, 'LIKE', $prefixPattern)
-            ->orderBy($column, 'desc')
             ->lockForUpdate()
-            ->value($column);
+            ->pluck($column);
 
-        $nextSeq = 1;
-        if ($maxRecord && preg_match('/' . preg_quote($prefix, '/') . '-\d{4}-(\d{6})/', $maxRecord, $matches)) {
-            $nextSeq = (int) $matches[1] + 1;
+        $maxSeq = 0;
+        $regex = '/^' . preg_quote($prefix, '/') . '-\d{4}-(\d{6})$/';
+
+        foreach ($records as $val) {
+            if (preg_match($regex, $val, $matches)) {
+                $num = (int) $matches[1];
+                if ($num > $maxSeq) {
+                    $maxSeq = $num;
+                }
+            }
         }
 
+        $nextSeq = $maxSeq + 1;
         return sprintf('%s-%d-%06d', $prefix, $year, $nextSeq);
     }
 }
-
