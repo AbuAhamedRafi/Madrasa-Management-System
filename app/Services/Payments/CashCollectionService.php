@@ -284,6 +284,7 @@ class CashCollectionService
 
                 if ($triggered) {
                     $payment->update(['admission_approved_triggered' => true]);
+                    $payment->admission_approved_triggered = true;
                 }
             }
 

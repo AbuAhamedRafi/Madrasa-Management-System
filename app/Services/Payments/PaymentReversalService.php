@@ -128,16 +128,14 @@ class PaymentReversalService
             $reversalRef = $this->sequenceService->nextNumber('RVX', 'payment_reversals', 'reversal_reference');
             $reversedAmount = (float) $lockedPayment->amount_received;
 
-            // Check if reversal affects an approved enrollment's mandatory admission items
+            // Check if reversal affects an approved enrollment or mandatory admission items
             $admissionReviewFlag = 'NONE';
-            if ($lockedPayment->admission_approved_triggered || ($lockedInvoice->enrollment && $lockedInvoice->enrollment->status->value === 'APPROVED')) {
-                $hasAdmissionAlloc = PaymentAllocation::where('payment_id', $lockedPayment->id)
-                    ->where('admission_required', true)
-                    ->exists();
+            $hasAdmissionAlloc = PaymentAllocation::where('payment_id', $lockedPayment->id)
+                ->where('admission_required', true)
+                ->exists();
 
-                if ($hasAdmissionAlloc) {
-                    $admissionReviewFlag = 'FLAGGED_FOR_REVIEW';
-                }
+            if ($lockedPayment->admission_approved_triggered || $hasAdmissionAlloc) {
+                $admissionReviewFlag = 'FLAGGED_FOR_REVIEW';
             }
 
             $reversal = PaymentReversal::create([

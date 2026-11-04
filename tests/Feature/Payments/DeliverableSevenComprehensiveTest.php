@@ -86,9 +86,27 @@ class DeliverableSevenComprehensiveTest extends TestCase
         $this->accountsUser->roles()->sync([$accountsRole->id]);
 
         $this->period = AcademicPeriod::firstOrFail();
-        $this->student = Student::firstOrFail();
-        $this->enrollment = Enrollment::where('student_id', $this->student->id)->firstOrFail();
-        $this->enrollment->update(['status' => EnrollmentStatus::PENDING_PAYMENT]);
+
+        // Create isolated test student and enrollment so existing seeded invoices don't interfere
+        $this->student = Student::create([
+            'student_id' => 'ST-TEST-' . strtoupper(Str::random(6)),
+            'name_bn' => 'পরীক্ষার্থী ছাত্র',
+            'name_en' => 'Test Student',
+            'date_of_birth' => '2012-05-15',
+            'gender' => 'MALE',
+            'status' => \App\Enums\StudentStatus::ACTIVE,
+        ]);
+
+        $offering = \App\Models\AcademicOffering::firstOrFail();
+        $this->enrollment = Enrollment::create([
+            'enrollment_code' => 'ENR-TEST-' . strtoupper(Str::random(6)),
+            'student_id' => $this->student->id,
+            'academic_period_id' => $this->period->id,
+            'academic_offering_id' => $offering->id,
+            'offering_section_id' => $offering->sections()->first()?->id,
+            'entry_type' => \App\Enums\AdmissionEntryType::NEW_ADMISSION,
+            'status' => EnrollmentStatus::PENDING_PAYMENT,
+        ]);
 
         $feeCatAdm = FeeCategory::firstOrCreate(
             ['code' => 'ADMISSION_TEST'],
@@ -188,7 +206,7 @@ class DeliverableSevenComprehensiveTest extends TestCase
             ->assertJsonPath('data.print_count', 1);
 
         // 5. Public QR Verification without PII exposure
-        $token = 'test_token_string';
+        $token = 'test_token_' . Str::random(10);
         $newSlip->update(['verification_token_hash' => hash('sha256', $token)]);
 
         $verifyRes = $this->getJson("/api/v1/verify/payment-slip/{$token}");

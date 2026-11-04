@@ -7,30 +7,69 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Services\Admissions\AdmissionApprovalService;
 use App\Services\AuditTrail\AuditLogService;
-use App\Services\Billing\BillingLedgerReadService;
 use Illuminate\Support\Facades\DB;
 
 class AdmissionPaymentClearanceService
 {
     public function __construct(
         protected AdmissionApprovalService $admissionApprovalService,
-        protected BillingLedgerReadService $billingLedgerReadService,
         protected AuditLogService $auditLogService
     ) {}
 
     /**
      * Inspect if all admission-required net charges for an enrollment are settled.
-     * Uses BillingLedgerReadService to read verified ledger allocations.
+     * Computes verified allocations directly from payment_allocations table.
      */
     public function getClearanceStatus(int $enrollmentId): array
     {
-        $liability = $this->billingLedgerReadService->getEnrollmentBillingLiability($enrollmentId);
+        $invoiceIds = Invoice::where('enrollment_id', $enrollmentId)
+            ->whereIn('status', ['ISSUED', 'DRAFT'])
+            ->pluck('id');
+
+        if ($invoiceIds->isEmpty()) {
+            return [
+                'is_settled' => false,
+                'required_total' => 0.00,
+                'required_paid' => 0.00,
+                'required_outstanding' => 0.00,
+            ];
+        }
+
+        $requiredItems = InvoiceItem::whereIn('invoice_id', $invoiceIds)
+            ->where('admission_required', true)
+            ->get();
+
+        if ($requiredItems->isEmpty()) {
+            return [
+                'is_settled' => true,
+                'required_total' => 0.00,
+                'required_paid' => 0.00,
+                'required_outstanding' => 0.00,
+            ];
+        }
+
+        $requiredTotal = 0.00;
+        $requiredPaid = 0.00;
+
+        foreach ($requiredItems as $item) {
+            $itemNet = (float) $item->net_amount;
+            $requiredTotal += $itemNet;
+
+            $paid = (float) DB::table('payment_allocations')
+                ->where('invoice_item_id', $item->id)
+                ->sum(DB::raw("CASE WHEN direction = 'CREDIT' THEN allocated_amount ELSE -allocated_amount END"));
+
+            $requiredPaid += $paid;
+        }
+
+        $requiredOutstanding = max(0.00, round($requiredTotal - $requiredPaid, 2));
+        $isSettled = ($requiredTotal > 0.0 && $requiredOutstanding <= 0.0001);
 
         return [
-            'is_settled' => (bool) ($liability['is_required_admission_settled'] ?? false),
-            'required_total' => (float) ($liability['required_admission_net'] ?? 0.00),
-            'required_paid' => (float) ($liability['required_admission_collected'] ?? 0.00),
-            'required_outstanding' => (float) ($liability['required_admission_outstanding'] ?? 0.00),
+            'is_settled' => $isSettled,
+            'required_total' => round($requiredTotal, 2),
+            'required_paid' => round($requiredPaid, 2),
+            'required_outstanding' => $requiredOutstanding,
         ];
     }
 
