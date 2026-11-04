@@ -237,11 +237,11 @@ class DeliverableSevenComprehensiveTest extends TestCase
             ->assertJsonPath('data.status', 'UNDER_REVIEW')
             ->assertJsonPath('data.variance_amount', '50.00');
 
-        // 3. Self-approval of variance is strictly forbidden
+        // 3. Self-approval of variance is strictly forbidden (Denied 403 by gate/permission)
         $selfReconcileRes = $this->actingAs($this->accountsUser, 'sanctum')->postJson("/api/v1/cashier-shifts/{$shiftId}/reconcile", [
             'reconciliation_notes' => 'Self approving',
         ]);
-        $selfReconcileRes->assertStatus(422);
+        $selfReconcileRes->assertStatus(403);
 
         // 4. Admin (distinct user) approves variance
         $adminReconcileRes = $this->actingAs($this->adminUser, 'sanctum')->postJson("/api/v1/cashier-shifts/{$shiftId}/reconcile", [
@@ -376,11 +376,11 @@ class DeliverableSevenComprehensiveTest extends TestCase
 
         $requestId = $reqRes->json('data.id');
 
-        // 2. Self-approval is rejected (dual control)
+        // 2. Self-approval is rejected (dual control: forbidden by role permissions & policy)
         $selfApproveRes = $this->actingAs($this->accountsUser, 'sanctum')->postJson("/api/v1/payment-reversal-requests/{$requestId}/approve", [
             'notes' => 'Self approving reversal',
         ]);
-        $selfApproveRes->assertStatus(422);
+        $selfApproveRes->assertStatus(403);
 
         // 3. Supervisor (Admin) approves reversal
         $approveRes = $this->actingAs($this->adminUser, 'sanctum')->postJson("/api/v1/payment-reversal-requests/{$requestId}/approve", [

@@ -131,7 +131,6 @@ class PaymentReversalService
             // Check if reversal affects an approved enrollment's mandatory admission items
             $admissionReviewFlag = 'NONE';
             if ($lockedPayment->admission_approved_triggered || ($lockedInvoice->enrollment && $lockedInvoice->enrollment->status->value === 'APPROVED')) {
-                // If any allocation was admission_required, flag for review
                 $hasAdmissionAlloc = PaymentAllocation::where('payment_id', $lockedPayment->id)
                     ->where('admission_required', true)
                     ->exists();
@@ -156,46 +155,29 @@ class PaymentReversalService
                 'notes' => $data['notes'] ?? $lockedReq->reason_details,
             ]);
 
-            // Create compensating DEBIT_REVERSAL allocations and restore item balances
+            // Create compensating DEBIT_REVERSAL allocations
             $originalAllocations = PaymentAllocation::where('payment_id', $lockedPayment->id)->get();
             $compensatingItemAllocations = [];
 
             foreach ($originalAllocations as $origAlloc) {
-                /** @var InvoiceItem $item */
-                $item = InvoiceItem::query()->where('id', $origAlloc->invoice_item_id)->lockForUpdate()->first();
-                if ($item) {
-                    $allocAmt = (float) $origAlloc->allocated_amount;
-                    $itemBalBefore = (float) $item->balance_amount;
-                    $itemBalAfter = round($itemBalBefore + $allocAmt, 2);
+                $allocAmt = (float) $origAlloc->allocated_amount;
 
-                    $item->paid_amount = max(0.00, round((float) $item->paid_amount - $allocAmt, 2));
-                    $item->balance_amount = $itemBalAfter;
-                    $item->save();
+                PaymentAllocation::create([
+                    'payment_id' => $lockedPayment->id,
+                    'payment_reversal_id' => $reversal->id,
+                    'invoice_id' => $lockedInvoice->id,
+                    'invoice_item_id' => $origAlloc->invoice_item_id,
+                    'direction' => 'DEBIT_REVERSAL',
+                    'allocated_amount' => -$allocAmt,
+                    'admission_required' => $origAlloc->admission_required,
+                    'item_balance_before' => $origAlloc->item_balance_after,
+                    'item_balance_after' => $origAlloc->item_balance_before,
+                    'created_by' => $approver->id,
+                    'created_at' => now(),
+                ]);
 
-                    PaymentAllocation::create([
-                        'payment_id' => $lockedPayment->id,
-                        'payment_reversal_id' => $reversal->id,
-                        'invoice_id' => $lockedInvoice->id,
-                        'invoice_item_id' => $item->id,
-                        'direction' => 'DEBIT_REVERSAL',
-                        'allocated_amount' => -$allocAmt,
-                        'admission_required' => $origAlloc->admission_required,
-                        'item_balance_before' => $itemBalBefore,
-                        'item_balance_after' => $itemBalAfter,
-                        'created_by' => $approver->id,
-                        'created_at' => now(),
-                    ]);
-
-                    $compensatingItemAllocations[$item->id] = (string) number_format(-$allocAmt, 2, '.', '');
-                }
+                $compensatingItemAllocations[$origAlloc->invoice_item_id] = (string) number_format(-$allocAmt, 2, '.', '');
             }
-
-            // Restore Invoice paid and balance amounts
-            $newPaid = max(0.00, round((float) $lockedInvoice->paid_amount - $reversedAmount, 2));
-            $newBal = min((float) $lockedInvoice->total_amount, round((float) $lockedInvoice->total_amount - $newPaid, 2));
-            $lockedInvoice->paid_amount = $newPaid;
-            $lockedInvoice->balance_amount = $newBal;
-            $lockedInvoice->save();
 
             // Feed compensating negative event into D06 BillingLedgerReadService
             $eventId = Str::uuid()->toString();
@@ -305,4 +287,3 @@ class PaymentReversalService
         });
     }
 }
-

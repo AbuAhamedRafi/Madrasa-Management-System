@@ -127,7 +127,7 @@ class PaymentSlipController extends Controller
 
     public function printPayload(PaymentSlip $slip, Request $request): JsonResponse
     {
-        $this->slipService->recordPrint($slip, $request->user());
+        $slip = $this->slipService->recordPrint($slip, $request->user());
 
         return response()->json([
             'success' => true,

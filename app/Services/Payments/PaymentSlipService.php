@@ -226,7 +226,7 @@ class PaymentSlipService
             $lockedSlip = PaymentSlip::query()->where('id', $slip->id)->lockForUpdate()->firstOrFail();
             $lockedSlip->increment('print_count');
             $lockedSlip->update(['last_printed_at' => now()]);
-            return $lockedSlip;
+            return $lockedSlip->fresh();
         });
     }
 }
