@@ -10,7 +10,11 @@ use App\Enums\PaymentSlipStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\ReceiptStatus;
 use App\Enums\ReversalRequestStatus;
+use App\Enums\AdmissionEntryType;
+use App\Enums\AdmissionStatus;
+use App\Models\AcademicOffering;
 use App\Models\AcademicPeriod;
+use App\Models\ProgramAdmission;
 use App\Models\CashierShift;
 use App\Models\Enrollment;
 use App\Models\FeeCategory;
@@ -90,22 +94,40 @@ class DeliverableSevenComprehensiveTest extends TestCase
         // Create isolated test student and enrollment so existing seeded invoices don't interfere
         $this->student = Student::create([
             'student_id' => 'ST-TEST-' . strtoupper(Str::random(6)),
+            'admission_year' => 2026,
+            'admission_date' => '2026-01-01',
             'name_bn' => 'পরীক্ষার্থী ছাত্র',
             'name_en' => 'Test Student',
             'date_of_birth' => '2012-05-15',
             'gender' => 'MALE',
             'status' => \App\Enums\StudentStatus::ACTIVE,
+            'created_by' => $this->adminUser->id,
         ]);
 
-        $offering = \App\Models\AcademicOffering::firstOrFail();
+        $offering = AcademicOffering::firstOrFail();
+        $admission = ProgramAdmission::create([
+            'student_id' => $this->student->id,
+            'academic_program_id' => $this->period->program_id,
+            'academic_cohort_id' => $this->period->cohort_id ?? \App\Models\AcademicCohort::first()?->id,
+            'entry_type' => AdmissionEntryType::REGULAR,
+            'status' => AdmissionStatus::ACTIVE,
+            'entered_at' => now(),
+            'created_by' => $this->adminUser->id,
+        ]);
+
         $this->enrollment = Enrollment::create([
-            'enrollment_code' => 'ENR-TEST-' . strtoupper(Str::random(6)),
+            'program_admission_id' => $admission->id,
             'student_id' => $this->student->id,
             'academic_period_id' => $this->period->id,
             'academic_offering_id' => $offering->id,
             'offering_section_id' => $offering->sections()->first()?->id,
-            'entry_type' => \App\Enums\AdmissionEntryType::NEW_ADMISSION,
+            'enrollment_type' => \App\Enums\EnrollmentType::NEW,
             'status' => EnrollmentStatus::PENDING_PAYMENT,
+            'billing_cleared' => true,
+            'payment_cleared' => false,
+            'lock_version' => 1,
+            'submitted_at' => now(),
+            'created_by' => $this->adminUser->id,
         ]);
 
         $feeCatAdm = FeeCategory::firstOrCreate(
