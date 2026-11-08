@@ -1459,7 +1459,7 @@ class DeliverableEightComprehensiveTest extends TestCase
         $events = collect($eventsRes->json('data'));
 
         $this->assertTrue($events->contains(fn($e) => $e['event'] === 'UPLOADED'));
-        $this->assertTrue($events->contains(fn($e) => $e['event'] === 'MAPPED'));
+        $this->assertTrue($events->contains(fn($e) => $e['event'] === 'MAPPING_UPDATED'));
         $this->assertTrue($events->contains(fn($e) => $e['event'] === 'VALIDATED'));
         $this->assertTrue($events->contains(fn($e) => $e['event'] === 'COMMITTED'));
         $this->assertTrue($events->contains(fn($e) => $e['event'] === 'RESULT_DOWNLOADED'));
@@ -1568,8 +1568,17 @@ class DeliverableEightComprehensiveTest extends TestCase
         $dlRes->assertOk();
 
         $content = $dlRes->getContent();
+        // Unzip and inspect sheet XML
+        $zip = new \ZipArchive();
+        $temp = tempnam(sys_get_temp_dir(), 'test_zip_');
+        file_put_contents($temp, $content);
+        $zip->open($temp);
+        $sheetXml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $zip->close();
+        @unlink($temp);
+
         // Check that =SUM was escaped with apostrophe in the generated XML sheet
-        $this->assertStringContainsString("&#039;=SUM(1,2)", $content);
+        $this->assertStringContainsString("&#039;=SUM(1,2)", $sheetXml);
     }
 
     /**
@@ -1594,6 +1603,20 @@ class DeliverableEightComprehensiveTest extends TestCase
         ], ['Accept' => 'application/json']);
 
         $jobId = $uploadRes->json('data.id');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'name_bn',
+                'B' => 'name_en',
+                'C' => 'gender',
+                'D' => 'dob',
+                'E' => 'primary_guardian.phone',
+            ]
+        ]);
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/validate");
 
         $rows = \App\Models\ImportRow::where('import_job_id', $jobId)->get();
         // Row 1 is header, data row is row_number = 2
@@ -1819,7 +1842,7 @@ class DeliverableEightComprehensiveTest extends TestCase
             'status' => 'ISSUED',
             'due_at' => now()->addDays(15),
             'currency' => 'BDT',
-            'source_type' => 'ENROLLMENT',
+            'source_type' => \App\Enums\InvoiceSourceType::ENROLLMENT_ADMISSION,
             'source_key' => 'TEST-SOURCE',
         ]);
 
@@ -1895,16 +1918,17 @@ class DeliverableEightComprehensiveTest extends TestCase
             'format' => 'XLSX',
         ]);
 
+        $exportRes->assertStatus(201);
         $jobId = $exportRes->json('data.id');
 
         // Deactivate staff user
-        $this->staffUser->update(['is_active' => false]);
+        $this->staffUser->update(['status' => \App\Enums\AccountStatus::DISABLED]);
 
         $dlRes = $this->actingAs($this->staffUser)->getJson("/api/v1/export-jobs/{$jobId}/download");
         $dlRes->assertStatus(403)
             ->assertJsonPath('error.code', 'USER_INACTIVE');
 
         // Reactivate for subsequent tests
-        $this->staffUser->update(['is_active' => true]);
+        $this->staffUser->update(['status' => \App\Enums\AccountStatus::ACTIVE]);
     }
 }

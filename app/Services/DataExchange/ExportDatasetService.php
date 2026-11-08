@@ -41,7 +41,7 @@ class ExportDatasetService
      */
     public function listDatasets(User $actor): array
     {
-        $roleNames = $actor->roles->pluck('name')->map(fn($n) => strtoupper($n))->toArray();
+        $roleNames = $actor->roles->pluck('key')->map(fn($k) => strtoupper($k))->toArray();
         $isAdmin = in_array('ADMIN', $roleNames);
 
         $definitions = $this->getDatasetDefinitions();
@@ -72,7 +72,7 @@ class ExportDatasetService
     {
         $this->ensureDatasetAccess($datasetKey, $actor);
 
-        $roleNames = $actor->roles->pluck('name')->map(fn($n) => strtoupper($n))->toArray();
+        $roleNames = $actor->roles->pluck('key')->map(fn($k) => strtoupper($k))->toArray();
         $isAdmin = in_array('ADMIN', $roleNames);
         $isAccounts = in_array('ACCOUNTS', $roleNames) && !$isAdmin;
 
@@ -146,7 +146,7 @@ class ExportDatasetService
     {
         $this->validateExportRequest($datasetKey, $columns, $filters, $actor);
 
-        $roleNames = $actor->roles->pluck('name')->map(fn($n) => strtoupper($n))->toArray();
+        $roleNames = $actor->roles->pluck('key')->map(fn($k) => strtoupper($k))->toArray();
         $isAdmin = in_array('ADMIN', $roleNames);
 
         $colDefs = collect($this->getColumns($datasetKey, $actor))->keyBy('key');
@@ -181,7 +181,7 @@ class ExportDatasetService
      */
     protected function buildDatasetQuery(string $datasetKey, array $filters, User $actor): Builder
     {
-        $roleNames = $actor->roles->pluck('name')->map(fn($n) => strtoupper($n))->toArray();
+        $roleNames = $actor->roles->pluck('key')->map(fn($k) => strtoupper($k))->toArray();
         $isAdmin = in_array('ADMIN', $roleNames);
         $isStaff = in_array('OFFICE_STAFF', $roleNames) && !$isAdmin;
 
@@ -475,7 +475,7 @@ class ExportDatasetService
      */
     protected function ensureDatasetAccess(string $datasetKey, User $actor): void
     {
-        $roleNames = $actor->roles->pluck('name')->map(fn($n) => strtoupper($n))->toArray();
+        $roleNames = $actor->roles->pluck('key')->map(fn($k) => strtoupper($k))->toArray();
         if (in_array('ADMIN', $roleNames)) {
             return;
         }

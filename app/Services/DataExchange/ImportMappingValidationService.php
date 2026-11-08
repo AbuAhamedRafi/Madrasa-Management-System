@@ -142,7 +142,7 @@ class ImportMappingValidationService
             }
 
             if (in_array($targetField, $forbiddenFields, true)) {
-                throw DataExchangeDomainException::schemaViolation(
+                throw DataExchangeDomainException::columnMappingInvalid(
                     "Target field '{$targetField}' is strictly forbidden in template '{$job->template_code}'."
                 );
             }

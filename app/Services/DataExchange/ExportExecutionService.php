@@ -67,9 +67,12 @@ class ExportExecutionService
 
         // 1. Idempotency Check
         if ($idempotencyKey) {
-            $cached = $this->idempotencyService->check('EXPORT_CREATE', $actor->id, $idempotencyKey, $data);
-            if ($cached) {
-                return ExportJob::findOrFail($cached['result_id']);
+            $cached = $this->idempotencyService->validateOrStart($actor->id, 'EXPORT_CREATE', $idempotencyKey, $data);
+            if ($cached && !empty($cached['is_replay'])) {
+                $jobId = $cached['data']['id'] ?? null;
+                if ($jobId) {
+                    return ExportJob::findOrFail($jobId);
+                }
             }
         }
 
@@ -90,7 +93,7 @@ class ExportExecutionService
             'filter_json' => $filters,
             'column_json' => $columns,
             'scope_snapshot_json' => [
-                'actor_roles' => $actor->roles->pluck('name')->toArray(),
+                'actor_roles' => $actor->roles->pluck('key')->toArray(),
                 'campus_id' => $actor->campus_id ?? null,
                 'department_id' => $actor->department_id ?? null,
             ],
@@ -119,7 +122,7 @@ class ExportExecutionService
                 $content = $this->pdfService->generateReport(
                     title: "MMS Export: " . strtoupper($datasetKey),
                     metadata: [
-                        'exported_by' => $actor->name,
+                        'exported_by' => $actor->name_bn ?? $actor->name_en ?? "User #{$actor->id}",
                         'cutoff_at' => $now->toDateTimeString(),
                         'total_rows' => $rowCount,
                     ],
@@ -169,13 +172,17 @@ class ExportExecutionService
 
             if ($idempotencyKey) {
                 $this->idempotencyService->complete(
-                    'EXPORT_CREATE',
                     $actor->id,
+                    'EXPORT_CREATE',
                     $idempotencyKey,
-                    'ExportJob',
-                    $job->id,
                     201,
-                    ['job_number' => $job->job_number, 'status' => 'READY']
+                    [
+                        'id' => $job->id,
+                        'job_number' => $job->job_number,
+                        'status' => 'READY',
+                    ],
+                    'ExportJob',
+                    $job->id
                 );
             }
 
@@ -197,7 +204,7 @@ class ExportExecutionService
      */
     public function cancelJob(ExportJob $job, User $actor): ExportJob
     {
-        $roleNames = $actor->roles->pluck('name')->map(fn($n) => strtoupper($n))->toArray();
+        $roleNames = $actor->roles->pluck('key')->map(fn($k) => strtoupper($k))->toArray();
         $isAdmin = in_array('ADMIN', $roleNames);
 
         if (!$isAdmin && $job->requester_id !== $actor->id) {
@@ -224,12 +231,12 @@ class ExportExecutionService
     public function downloadArtifact(ExportJob $job, User $actor): BinaryFileResponse
     {
         // 1. Recheck live user status
-        if (!$actor->is_active) {
+        if ($actor->status !== \App\Enums\AccountStatus::ACTIVE) {
             throw DataExchangeDomainException::forbidden('USER_INACTIVE', 'Your account is inactive.');
         }
 
         // 2. Recheck user permission and dataset scope (D08-F12-04)
-        $roleNames = $actor->roles->pluck('name')->map(fn($n) => strtoupper($n))->toArray();
+        $roleNames = $actor->roles->pluck('key')->map(fn($k) => strtoupper($k))->toArray();
         $isAdmin = in_array('ADMIN', $roleNames);
 
         if (!$isAdmin && $job->requester_id !== $actor->id) {
