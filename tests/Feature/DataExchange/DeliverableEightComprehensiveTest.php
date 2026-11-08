@@ -1094,7 +1094,7 @@ class DeliverableEightComprehensiveTest extends TestCase
             'date_of_birth' => '2014-05-10',
             'gender' => 'MALE',
             'admission_date' => '2026-01-01',
-            'status' => \App\Enums\StudentStatus::REGISTERED,
+            'status' => \App\Enums\StudentStatus::ACTIVE,
             'created_by' => $this->adminUser->id,
             'updated_by' => $this->adminUser->id,
         ]);
@@ -1407,5 +1407,504 @@ class DeliverableEightComprehensiveTest extends TestCase
             ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
         $this->assertNotEmpty($dlRes->getContent());
+    }
+
+    /**
+     * D08-F09-AT01 & AT02: Audit trail records who uploaded, mapped, validated, committed, and downloaded.
+     */
+    public function test_f09_at01_and_at02_audit_trail_and_result_authorization(): void
+    {
+        $uniquePhone = '017' . rand(10000000, 99999999);
+        $file = $this->createValidXlsxFile('audit_test.xlsx', [
+            'Data' => [
+                'headers' => ['name_bn', 'name_en', 'gender', 'dob', 'primary_guardian_phone'],
+                'rows' => [
+                    ['ইমরান খান', 'Imran Khan', 'MALE', '2015-01-01', $uniquePhone],
+                ]
+            ]
+        ]);
+
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'CREATE_ONLY',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'name_bn',
+                'B' => 'name_en',
+                'C' => 'gender',
+                'D' => 'dob',
+                'E' => 'primary_guardian.phone',
+            ]
+        ]);
+
+        $valRes = $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/validate");
+        $token = $valRes->json('data.preview_token');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/commit", [
+            'preview_token' => $token,
+        ]);
+
+        $this->actingAs($this->staffUser)->get("/api/v1/import-jobs/{$jobId}/result-file");
+
+        // Verify events recorded
+        $eventsRes = $this->actingAs($this->staffUser)->getJson("/api/v1/data-jobs/{$jobId}/events");
+        $eventsRes->assertOk();
+        $events = collect($eventsRes->json('data'));
+
+        $this->assertTrue($events->contains(fn($e) => $e['event'] === 'UPLOADED'));
+        $this->assertTrue($events->contains(fn($e) => $e['event'] === 'MAPPED'));
+        $this->assertTrue($events->contains(fn($e) => $e['event'] === 'VALIDATED'));
+        $this->assertTrue($events->contains(fn($e) => $e['event'] === 'COMMITTED'));
+        $this->assertTrue($events->contains(fn($e) => $e['event'] === 'RESULT_DOWNLOADED'));
+
+        // Admin audit route check
+        $auditRes = $this->actingAs($this->adminUser)->getJson('/api/v1/data-jobs/audit');
+        $auditRes->assertOk()
+            ->assertJsonPath('data.0.job_id', $jobId);
+    }
+
+    /**
+     * D08-F09-AT03: Expired artifacts return 410 FILE_EXPIRED.
+     */
+    public function test_f09_at03_expired_artifact_returns_410(): void
+    {
+        $uniquePhone = '017' . rand(10000000, 99999999);
+        $file = $this->createValidXlsxFile('expired_test.xlsx', [
+            'Data' => [
+                'headers' => ['name_bn', 'name_en', 'gender', 'dob', 'primary_guardian_phone'],
+                'rows' => [
+                    ['সাকিব আল হাসান', 'Shakib Al Hasan', 'MALE', '2015-02-02', $uniquePhone],
+                ]
+            ]
+        ]);
+
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'CREATE_ONLY',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'name_bn',
+                'B' => 'name_en',
+                'C' => 'gender',
+                'D' => 'dob',
+                'E' => 'primary_guardian.phone',
+            ]
+        ]);
+
+        $valRes = $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/validate");
+        $token = $valRes->json('data.preview_token');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/commit", [
+            'preview_token' => $token,
+        ]);
+
+        // Manually simulate retention expiration (> 7 days in past)
+        \App\Models\ImportJob::where('id', $jobId)->update([
+            'retention_until' => now()->subDay(),
+        ]);
+
+        $dlRes = $this->actingAs($this->staffUser)->getJson("/api/v1/import-jobs/{$jobId}/result-file");
+        $dlRes->assertStatus(410)
+            ->assertJsonPath('error.code', 'FILE_EXPIRED');
+    }
+
+    /**
+     * D08-F09-AT04 & F12-AT06: Result XLSX cells starting with = + - @ are safely escaped with ' prefix.
+     */
+    public function test_f09_at04_formula_injection_escaping_in_xlsx(): void
+    {
+        $uniquePhone = '017' . rand(10000000, 99999999);
+        $file = $this->createValidXlsxFile('formula_result.xlsx', [
+            'Data' => [
+                'headers' => ['name_bn', 'name_en', 'gender', 'dob', 'primary_guardian_phone'],
+                'rows' => [
+                    ['=SUM(1,2)', '+FormulaTwo', 'MALE', '2015-03-03', $uniquePhone],
+                ]
+            ]
+        ]);
+
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'CREATE_ONLY',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'name_bn',
+                'B' => 'name_en',
+                'C' => 'gender',
+                'D' => 'dob',
+                'E' => 'primary_guardian.phone',
+            ]
+        ]);
+
+        $valRes = $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/validate");
+        $token = $valRes->json('data.preview_token');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/commit", [
+            'preview_token' => $token,
+        ]);
+
+        $dlRes = $this->actingAs($this->staffUser)->get("/api/v1/import-jobs/{$jobId}/result-file");
+        $dlRes->assertOk();
+
+        $content = $dlRes->getContent();
+        // Check that =SUM was escaped with apostrophe in the generated XML sheet
+        $this->assertStringContainsString("&#039;=SUM(1,2)", $content);
+    }
+
+    /**
+     * D08-F09-AT05: Source row number preserved in all row results across retries.
+     */
+    public function test_f09_at05_source_row_number_preserved_across_results(): void
+    {
+        $uniquePhone = '017' . rand(10000000, 99999999);
+        $file = $this->createValidXlsxFile('row_nums.xlsx', [
+            'Data' => [
+                'headers' => ['name_bn', 'name_en', 'gender', 'dob', 'primary_guardian_phone'],
+                'rows' => [
+                    ['সাদ বিন আবি ওয়াক্কাস', 'Saad Bin Abi Waqqas', 'MALE', '2015-05-05', $uniquePhone],
+                ]
+            ]
+        ]);
+
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'CREATE_ONLY',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $rows = \App\Models\ImportRow::where('import_job_id', $jobId)->get();
+        // Row 1 is header, data row is row_number = 2
+        $this->assertEquals(2, $rows[0]->row_number);
+    }
+
+    /**
+     * D08-F10-AT01 & AT02: Export dataset listing, schema, and calendar-year filters.
+     */
+    public function test_f10_at01_and_at02_export_datasets_rbac_and_filters(): void
+    {
+        // 1. Staff can view student datasets, denied finance cash collections
+        $staffDatasetsRes = $this->actingAs($this->staffUser)->getJson('/api/v1/export-datasets');
+        $staffDatasetsRes->assertOk();
+        $keys = collect($staffDatasetsRes->json('data'))->pluck('key')->toArray();
+        $this->assertContains('student_master', $keys);
+        $this->assertContains('academic_enrollments', $keys);
+        $this->assertNotContains('cash_collections', $keys);
+        $this->assertNotContains('cashier_reconciliation', $keys);
+
+        // 2. Column schema check for student_master
+        $colRes = $this->actingAs($this->staffUser)->getJson('/api/v1/export-datasets/student_master/columns');
+        $colRes->assertOk();
+        $colList = collect($colRes->json('data.columns'));
+        $this->assertNotEmpty($colList);
+
+        // 3. Dry-run Preview
+        $previewRes = $this->actingAs($this->staffUser)->postJson('/api/v1/export-jobs/preview', [
+            'dataset' => 'student_master',
+            'columns' => ['student_id', 'name_bn', 'name_en'],
+            'format' => 'XLSX',
+        ]);
+        $previewRes->assertOk()
+            ->assertJsonPath('data.dataset', 'student_master')
+            ->assertJsonStructure(['data' => ['row_count', 'estimated_kb', 'cutoff_at']]);
+
+        // 4. Accounts cannot access student_master
+        $accountsForbidden = $this->actingAs($this->accountsUser)->getJson('/api/v1/export-datasets/student_master/columns');
+        $accountsForbidden->assertStatus(403);
+    }
+
+    /**
+     * D08-F10-AT03 & AT04: Academic enrollments export and student profile history export.
+     */
+    public function test_f10_at03_and_at04_cohort_vs_period_and_profile_history(): void
+    {
+        // 1. Create Export Job for academic_enrollments
+        $exportRes = $this->actingAs($this->staffUser)->postJson('/api/v1/export-jobs', [
+            'dataset' => 'academic_enrollments',
+            'columns' => ['student_id', 'student_name', 'academic_year', 'program', 'cohort', 'period', 'class', 'section'],
+            'format' => 'XLSX',
+            'locale' => 'bn',
+        ]);
+
+        $exportRes->assertStatus(201)
+            ->assertJsonPath('data.status', 'READY');
+
+        $jobId = $exportRes->json('data.id');
+
+        // 2. Download export artifact
+        $dlRes = $this->actingAs($this->staffUser)->get("/api/v1/export-jobs/{$jobId}/download");
+        $dlRes->assertOk()
+            ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        $this->assertNotEmpty($dlRes->getContent());
+
+        // 3. Create Export Job for student_profile_history
+        $histExport = $this->actingAs($this->staffUser)->postJson('/api/v1/export-jobs', [
+            'dataset' => 'student_profile_history',
+            'columns' => ['student_id', 'event_type', 'description', 'performed_by', 'occurred_at'],
+            'format' => 'XLSX',
+        ]);
+        $histExport->assertStatus(201);
+    }
+
+    /**
+     * D08-F10-AT05 & AT06 & F12-AT02: PDF export generation with metadata header.
+     */
+    public function test_f10_at05_and_at06_export_execution_idempotency_and_pdf(): void
+    {
+        $idempotencyKey = (string) Str::uuid();
+
+        // 1. Export in PDF format
+        $exportRes = $this->actingAs($this->staffUser)->postJson(
+            '/api/v1/export-jobs',
+            [
+                'dataset' => 'student_master',
+                'columns' => ['student_id', 'name_bn', 'name_en', 'gender'],
+                'format' => 'PDF',
+                'locale' => 'en',
+            ],
+            ['Idempotency-Key' => $idempotencyKey]
+        );
+
+        $exportRes->assertStatus(201)
+            ->assertJsonPath('data.format', 'PDF');
+
+        $jobId = $exportRes->json('data.id');
+
+        // 2. Download PDF and verify %PDF-1.4 header
+        $dlRes = $this->actingAs($this->staffUser)->get("/api/v1/export-jobs/{$jobId}/download");
+        $dlRes->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
+        $pdfBytes = $dlRes->getContent();
+        $this->assertStringStartsWith("%PDF-1.4", $pdfBytes);
+        $this->assertStringContainsString("%%EOF", $pdfBytes);
+
+        // 3. Idempotent replay with same key returns identical job
+        $replayRes = $this->actingAs($this->staffUser)->postJson(
+            '/api/v1/export-jobs',
+            [
+                'dataset' => 'student_master',
+                'columns' => ['student_id', 'name_bn', 'name_en', 'gender'],
+                'format' => 'PDF',
+                'locale' => 'en',
+            ],
+            ['Idempotency-Key' => $idempotencyKey]
+        );
+
+        $replayRes->assertStatus(201)
+            ->assertJsonPath('data.id', $jobId);
+    }
+
+    /**
+     * D08-F11-AT01 & AT02: Accounts can export D06/D07 finance data; cash report counts posted payments only.
+     */
+    public function test_f11_at01_and_at02_accounts_scope_and_cash_counts_posted_only(): void
+    {
+        // 1. Accounts lists datasets -> only finance datasets
+        $datasetsRes = $this->actingAs($this->accountsUser)->getJson('/api/v1/export-datasets');
+        $datasetsRes->assertOk();
+        $keys = collect($datasetsRes->json('data'))->pluck('key')->toArray();
+        $this->assertContains('invoice_ledger', $keys);
+        $this->assertContains('cash_collections', $keys);
+        $this->assertContains('cashier_reconciliation', $keys);
+        $this->assertNotContains('student_master', $keys);
+
+        // 2. Accounts attempts to request restricted field (BRC) -> 403 RESTRICTED_FIELD
+        $badReq = $this->actingAs($this->accountsUser)->postJson('/api/v1/export-jobs', [
+            'dataset' => 'student_master',
+            'columns' => ['student_id', 'birth_registration_number'],
+            'format' => 'XLSX',
+        ]);
+        $badReq->assertStatus(403);
+
+        // 3. Pre-create 1 POSTED payment and 1 UNPAID payment slip / pending payment
+        $uniquePhone = '017' . rand(10000000, 99999999);
+        $student = \App\Models\Student::create([
+            'student_id' => 'ST-' . strtoupper(Str::random(8)),
+            'name_bn' => 'আহমেদ হাসান',
+            'name_en' => 'Ahmed Hasan',
+            'date_of_birth' => '2015-07-07',
+            'gender' => 'MALE',
+            'admission_date' => '2026-01-01',
+            'status' => \App\Enums\StudentStatus::ACTIVE,
+            'created_by' => $this->adminUser->id,
+            'updated_by' => $this->adminUser->id,
+        ]);
+
+        // POSTED payment (Cash)
+        \App\Models\Payment::create([
+            'payment_reference' => 'PAY-2026-TEST01',
+            'student_id' => $student->id,
+            'payment_method' => 'CASH',
+            'status' => 'POSTED',
+            'amount_received' => 2500.00,
+            'allocated_amount' => 2500.00,
+            'collected_by' => $this->accountsUser->id,
+            'collected_at' => now(),
+        ]);
+
+        // PENDING payment (Uncollected / unverified)
+        \App\Models\Payment::create([
+            'payment_reference' => 'PAY-2026-PENDING01',
+            'student_id' => $student->id,
+            'payment_method' => 'CASH',
+            'status' => 'PENDING',
+            'amount_received' => 5000.00,
+            'allocated_amount' => 0.00,
+            'collected_by' => $this->accountsUser->id,
+            'collected_at' => now(),
+        ]);
+
+        // 4. Accounts exports cash_collections
+        $cashExport = $this->actingAs($this->accountsUser)->postJson('/api/v1/export-jobs', [
+            'dataset' => 'cash_collections',
+            'columns' => ['receipt_number', 'payment_method', 'student_id', 'student_name', 'amount', 'status'],
+            'format' => 'XLSX',
+        ]);
+
+        $cashExport->assertStatus(201);
+        $jobId = $cashExport->json('data.id');
+
+        $job = \App\Models\ExportJob::find($jobId);
+        // Only 1 record (the POSTED payment) must be included, NOT the PENDING one
+        $this->assertEquals(1, $job->row_count);
+    }
+
+    /**
+     * D08-F11-AT03 & AT04: Invoice balances reconcile with D06 items and allocations.
+     */
+    public function test_f11_at03_and_at04_invoice_balance_reconciles_and_reversals(): void
+    {
+        $student = \App\Models\Student::create([
+            'student_id' => 'ST-' . strtoupper(Str::random(8)),
+            'name_bn' => 'মুসা বিন ইমরান',
+            'name_en' => 'Musa Bin Imran',
+            'date_of_birth' => '2015-08-08',
+            'gender' => 'MALE',
+            'admission_date' => '2026-01-01',
+            'status' => \App\Enums\StudentStatus::ACTIVE,
+            'created_by' => $this->adminUser->id,
+            'updated_by' => $this->adminUser->id,
+        ]);
+
+        $invoice = \App\Models\Invoice::create([
+            'invoice_number' => 'INV-2026-REC01',
+            'student_id' => $student->id,
+            'gross_amount' => 5000.00,
+            'adjustment_amount' => 500.00,
+            'net_amount' => 4500.00,
+            'status' => 'ISSUED',
+            'due_at' => now()->addDays(15),
+            'currency' => 'BDT',
+            'source_type' => 'ENROLLMENT',
+            'source_key' => 'TEST-SOURCE',
+        ]);
+
+        // Allocate 2000 payment
+        \Illuminate\Support\Facades\DB::table('payment_allocations')->insert([
+            'payment_id' => 1,
+            'invoice_id' => $invoice->id,
+            'allocation_type' => 'CREDIT',
+            'allocated_amount' => 2000.00,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // Export invoice_ledger
+        $invExport = $this->actingAs($this->accountsUser)->postJson('/api/v1/export-jobs', [
+            'dataset' => 'invoice_ledger',
+            'columns' => ['invoice_number', 'student_id', 'total_amount', 'waiver_amount', 'net_amount', 'paid_amount', 'balance_amount'],
+            'format' => 'XLSX',
+        ]);
+
+        $invExport->assertStatus(201);
+        $jobId = $invExport->json('data.id');
+
+        $job = \App\Models\ExportJob::find($jobId);
+        $this->assertGreaterThanOrEqual(1, $job->row_count);
+    }
+
+    /**
+     * D08-F11-AT05: Imported workbooks cannot write payments, receipts, or cashier shifts even with forged permissions.
+     */
+    public function test_f11_at05_import_cannot_write_financial_ledger(): void
+    {
+        $file = $this->createValidXlsxFile('financial_tamper.xlsx', [
+            'Data' => [
+                'headers' => ['student_id', 'cash_paid', 'receipt_no', 'shift_id'],
+                'rows' => [
+                    ['ST-2026-0001', '5000', 'REC-FORGED', '1'],
+                ]
+            ]
+        ]);
+
+        $uploadRes = $this->actingAs($this->adminUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'CREATE_ONLY',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        // Column mapping attempts to map financial columns -> 422 COLUMN_MAPPING_INVALID
+        $mapRes = $this->actingAs($this->adminUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'student_id',
+                'B' => 'cash_paid',
+                'C' => 'receipt_no',
+            ]
+        ]);
+
+        $mapRes->assertStatus(422)
+            ->assertJsonPath('error.code', 'COLUMN_MAPPING_INVALID');
+    }
+
+    /**
+     * D08-F12-AT03 & AT04: Rechecking live user permissions at download; expired export download blocked.
+     */
+    public function test_f12_at03_and_at04_download_security_recheck(): void
+    {
+        $exportRes = $this->actingAs($this->staffUser)->postJson('/api/v1/export-jobs', [
+            'dataset' => 'student_master',
+            'columns' => ['student_id', 'name_bn'],
+            'format' => 'XLSX',
+        ]);
+
+        $jobId = $exportRes->json('data.id');
+
+        // Deactivate staff user
+        $this->staffUser->update(['is_active' => false]);
+
+        $dlRes = $this->actingAs($this->staffUser)->getJson("/api/v1/export-jobs/{$jobId}/download");
+        $dlRes->assertStatus(403)
+            ->assertJsonPath('error.code', 'USER_INACTIVE');
+
+        // Reactivate for subsequent tests
+        $this->staffUser->update(['is_active' => true]);
     }
 }

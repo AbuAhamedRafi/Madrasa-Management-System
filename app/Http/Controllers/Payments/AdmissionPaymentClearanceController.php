@@ -15,8 +15,6 @@ class AdmissionPaymentClearanceController extends Controller
 
     public function show(Enrollment $enrollment): JsonResponse
     {
-        $this
-
         $status = $this->clearanceService->getClearanceStatus($enrollment->id);
 
         return response()->json([

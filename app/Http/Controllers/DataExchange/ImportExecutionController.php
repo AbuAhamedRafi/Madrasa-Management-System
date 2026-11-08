@@ -96,9 +96,21 @@ class ImportExecutionController extends Controller
     {
         $job = $this->resolveAuthorizedJob($request, $id, 'imports.read');
 
+        if ($job->retention_until && $job->retention_until->isPast()) {
+            throw DataExchangeDomainException::fileExpired('Result file has expired past its retention period.');
+        }
+
         if (empty($job->result_storage_key) || !Storage::disk('local')->exists($job->result_storage_key)) {
             throw DataExchangeDomainException::notFound('RESULT_FILE_NOT_FOUND', 'Result file is not available for this import job.');
         }
+
+        \App\Models\ImportJobEvent::create([
+            'import_job_id' => $job->id,
+            'actor_id' => $request->user()?->id,
+            'event' => 'RESULT_DOWNLOADED',
+            'reason_code' => 'DOWNLOAD',
+            'created_at' => now(),
+        ]);
 
         $content = Storage::disk('local')->get($job->result_storage_key);
         $filename = "import_result_{$job->job_number}.xlsx";
