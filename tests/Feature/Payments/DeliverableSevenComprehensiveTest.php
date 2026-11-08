@@ -49,6 +49,10 @@ class DeliverableSevenComprehensiveTest extends TestCase
     {
         parent::setUp();
 
+        if (Role::count() === 0) {
+            $this->seed(\Database\Seeders\RolePermissionSeeder::class);
+        }
+
         $adminRole = Role::where('key', 'ADMIN')->firstOrFail();
         $staffRole = Role::where('key', 'OFFICE_STAFF')->firstOrFail();
         $accountsRole = Role::where('key', 'ACCOUNTS')->firstOrFail();

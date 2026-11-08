@@ -187,7 +187,7 @@ class ExportDatasetService
 
         switch ($datasetKey) {
             case 'student_master':
-                $query = Student::query()->with(['primaryGuardian.guardian', 'academicProgram']);
+                $query = Student::query()->with(['primaryStudentGuardian.guardian']);
 
                 if (!empty($filters['status'])) {
                     $query->where('status', $filters['status']);
@@ -215,26 +215,26 @@ class ExportDatasetService
             case 'academic_enrollments':
                 $query = Enrollment::query()->with([
                     'student',
-                    'academicOffering.programClass.department',
-                    'academicOffering.program',
-                    'academicOffering.period',
-                    'offeringSection',
-                    'academicCohort',
+                    'offering.programClass.program',
+                    'offering.period',
+                    'period',
+                    'section',
+                    'programAdmission.cohort',
                 ]);
 
                 if (!empty($filters['academic_year'])) {
-                    $query->whereHas('academicOffering.period', function ($q) use ($filters) {
+                    $query->whereHas('period', function ($q) use ($filters) {
                         $q->where('academic_year', $filters['academic_year'])
                             ->orWhere('label', 'like', "%{$filters['academic_year']}%");
                     });
                 }
                 if (!empty($filters['department_id'])) {
-                    $query->whereHas('academicOffering.programClass', function ($q) use ($filters) {
+                    $query->whereHas('offering.programClass.program', function ($q) use ($filters) {
                         $q->where('department_id', $filters['department_id']);
                     });
                 }
                 if (!empty($filters['class_id'])) {
-                    $query->whereHas('academicOffering', function ($q) use ($filters) {
+                    $query->whereHas('offering', function ($q) use ($filters) {
                         $q->where('program_class_id', $filters['class_id']);
                     });
                 }
@@ -242,12 +242,12 @@ class ExportDatasetService
                     $query->where('offering_section_id', $filters['section_id']);
                 }
                 if (!empty($filters['cohort_id'])) {
-                    $query->where('academic_cohort_id', $filters['cohort_id']);
+                    $query->whereHas('programAdmission', function ($q) use ($filters) {
+                        $q->where('academic_cohort_id', $filters['cohort_id']);
+                    });
                 }
                 if (!empty($filters['period_id'])) {
-                    $query->whereHas('academicOffering', function ($q) use ($filters) {
-                        $q->where('academic_period_id', $filters['period_id']);
-                    });
+                    $query->where('academic_period_id', $filters['period_id']);
                 }
                 if (!empty($filters['status'])) {
                     $query->where('status', $filters['status']);
@@ -275,7 +275,7 @@ class ExportDatasetService
                 return $query->orderByDesc('id');
 
             case 'invoice_ledger':
-                $query = Invoice::query()->with(['student', 'academicPeriod']);
+                $query = Invoice::query()->with(['student', 'period']);
                 if (!empty($filters['academic_period_id'])) {
                     $query->where('academic_period_id', $filters['academic_period_id']);
                 }
@@ -342,10 +342,10 @@ class ExportDatasetService
                     'blood_group' => $record->blood_group,
                     'status' => $record->status?->value ?? $record->status,
                     'birth_registration_number' => $isAdmin ? $record->birth_registration_number : '***',
-                    'primary_guardian_name' => $record->primaryGuardian?->guardian?->name_bn ?? $record->primaryGuardian?->guardian?->name_en ?? '',
-                    'primary_guardian_relation' => $record->primaryGuardian?->relation_type ?? '',
-                    'guardian_phone' => $isAdmin ? ($record->primaryGuardian?->guardian?->phone ?? '') : $this->maskPhone($record->primaryGuardian?->guardian?->phone ?? ''),
-                    'guardian_phone_masked' => $this->maskPhone($record->primaryGuardian?->guardian?->phone ?? ''),
+                    'primary_guardian_name' => $record->primaryStudentGuardian?->guardian?->name_bn ?? $record->primaryStudentGuardian?->guardian?->name_en ?? '',
+                    'primary_guardian_relation' => $record->primaryStudentGuardian?->relation?->value ?? ($record->primaryStudentGuardian?->relation ?? ''),
+                    'guardian_phone' => $isAdmin ? ($record->primaryStudentGuardian?->guardian?->phone ?? '') : $this->maskPhone($record->primaryStudentGuardian?->guardian?->phone ?? ''),
+                    'guardian_phone_masked' => $this->maskPhone($record->primaryStudentGuardian?->guardian?->phone ?? ''),
                     'present_address' => $isAdmin ? ($record->present_address ?? '') : '***',
                     'permanent_address' => $isAdmin ? ($record->permanent_address ?? '') : '***',
                     default => $record->{$colKey} ?? '',
@@ -356,12 +356,12 @@ class ExportDatasetService
                 return match ($colKey) {
                     'student_id' => $record->student?->student_id ?? '',
                     'student_name' => $record->student?->name_bn ?? $record->student?->name_en ?? '',
-                    'academic_year' => $record->academicOffering?->period?->academic_year ?? '',
-                    'program' => $record->academicOffering?->program?->name_bn ?? $record->academicOffering?->program?->name_en ?? '',
-                    'cohort' => $record->academicCohort?->name ?? $record->academicCohort?->code ?? '',
-                    'period' => $record->academicOffering?->period?->label ?? '',
-                    'class' => $record->academicOffering?->programClass?->name_bn ?? $record->academicOffering?->programClass?->name_en ?? '',
-                    'section' => $record->offeringSection?->name_bn ?? $record->offeringSection?->section_code ?? '',
+                    'academic_year' => $record->period?->academic_year ?? $record->offering?->period?->academic_year ?? '',
+                    'program' => $record->offering?->programClass?->program?->name_bn ?? $record->offering?->programClass?->program?->name_en ?? '',
+                    'cohort' => $record->programAdmission?->cohort?->name ?? $record->programAdmission?->cohort?->code ?? '',
+                    'period' => $record->period?->label ?? $record->offering?->period?->label ?? '',
+                    'class' => $record->offering?->programClass?->name_bn ?? $record->offering?->programClass?->name_en ?? '',
+                    'section' => $record->section?->name_bn ?? $record->section?->section_code ?? '',
                     'roll_number' => $record->roll_number ?? '',
                     'status' => $record->status?->value ?? $record->status,
                     'enrolled_at' => $record->created_at?->format('Y-m-d H:i') ?? '',
@@ -397,11 +397,11 @@ class ExportDatasetService
                 /** @var Invoice $record */
                 $paid = DB::table('payment_allocations')
                     ->where('invoice_id', $record->id)
-                    ->where('allocation_type', 'CREDIT')
+                    ->where('direction', 'CREDIT')
                     ->sum('allocated_amount');
                 $reversed = DB::table('payment_allocations')
                     ->where('invoice_id', $record->id)
-                    ->where('allocation_type', 'DEBIT')
+                    ->where('direction', 'DEBIT')
                     ->sum('allocated_amount');
                 $netPaid = max(0, (float)($paid - $reversed));
                 $balance = max(0, (float)$record->net_amount - $netPaid);
@@ -410,7 +410,7 @@ class ExportDatasetService
                     'invoice_number' => $record->invoice_number,
                     'student_id' => $record->student?->student_id ?? '',
                     'student_name' => $record->student?->name_bn ?? $record->student?->name_en ?? '',
-                    'period' => $record->academicPeriod?->label ?? '',
+                    'period' => $record->period?->label ?? '',
                     'total_amount' => (float)$record->gross_amount,
                     'waiver_amount' => (float)$record->adjustment_amount,
                     'net_amount' => (float)$record->net_amount,

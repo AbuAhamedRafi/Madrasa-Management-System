@@ -532,7 +532,7 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
         // D08: Import Column Mapping & Preview - F04
         Route::get('/import-jobs/{id}/columns', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'columns'])
             ->middleware('permission:imports.read');
-        Route::match(['put', 'post'], '/import-jobs/{id}/mapping', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'saveMapping'])
+        Route::post('/import-jobs/{id}/mapping', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'saveMapping'])
             ->middleware('permission:imports.mapping.write');
         Route::post('/import-jobs/{id}/validate', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'validateJob'])
             ->middleware('permission:imports.validate');
@@ -556,21 +556,5 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
             ->middleware('permission:imports.commit');
         Route::get('/import-jobs/{id}/result-file', [\App\Http\Controllers\DataExchange\ImportExecutionController::class, 'downloadResultFile'])
             ->middleware('permission:imports.read');
-
-        // D08: Export Datasets & Jobs - F10 & F11
-        Route::get('/export-datasets', [\App\Http\Controllers\DataExchange\ExportDatasetController::class, 'index'])
-            ->middleware('permission:exports.read');
-        Route::get('/export-datasets/{key}/columns', [\App\Http\Controllers\DataExchange\ExportDatasetController::class, 'columns'])
-            ->middleware('permission:exports.read');
-        Route::post('/export-jobs/preview', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'preview'])
-            ->middleware('permission:exports.create');
-        Route::post('/export-jobs', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'store'])
-            ->middleware('permission:exports.create');
-        Route::get('/export-jobs/{id}', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'show'])
-            ->middleware('permission:exports.read');
-        Route::post('/export-jobs/{id}/cancel', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'cancel'])
-            ->middleware('permission:exports.cancel');
-        Route::get('/export-jobs/{id}/download', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'download'])
-            ->middleware('permission:exports.download');
     });
 });
