@@ -136,6 +136,11 @@ class ImportMappingValidationService
         foreach ($mapping as $col => $targetField) {
             if (!$targetField) continue;
 
+            // In MATCH_UPDATE and ENROLL_ONLY, student_id or system_student_id is the identity anchor
+            if (in_array($job->mode, [ImportMode::MATCH_UPDATE, ImportMode::ENROLL_ONLY], true) && in_array($targetField, ['student_id', 'system_student_id'], true)) {
+                continue;
+            }
+
             if (in_array($targetField, $forbiddenFields, true)) {
                 throw DataExchangeDomainException::schemaViolation(
                     "Target field '{$targetField}' is strictly forbidden in template '{$job->template_code}'."
@@ -143,18 +148,49 @@ class ImportMappingValidationService
             }
 
             // In CREATE_ONLY, student_id can NEVER be imported
-            if ($job->mode === ImportMode::CREATE_ONLY && $targetField === 'student_id') {
+            if ($job->mode === ImportMode::CREATE_ONLY && in_array($targetField, ['student_id', 'system_student_id'], true)) {
                 throw DataExchangeDomainException::schemaViolation("student_id cannot be mapped in CREATE_ONLY mode.");
             }
         }
 
-        // 2. Required fields check
+        // 2. Required fields check with alias support
+        $aliasMap = [
+            'dob' => 'date_of_birth',
+            'date_of_birth' => 'dob',
+            'primary_guardian_phone' => 'primary_guardian.phone',
+            'primary_guardian.phone' => 'primary_guardian_phone',
+        ];
+
         $mappedTargetValues = array_filter(array_values($mapping));
-        foreach ($requiredFields as $reqField) {
+        // Expand mapped target values with their aliases
+        foreach ($mappedTargetValues as $mv) {
+            if (isset($aliasMap[$mv])) {
+                $mappedTargetValues[] = $aliasMap[$mv];
+            }
+        }
+
+        // Essential core fields required for students_create
+        $coreRequired = match ($job->mode) {
+            ImportMode::CREATE_ONLY => ['name_bn', 'gender'],
+            ImportMode::MATCH_UPDATE => [],
+            ImportMode::ENROLL_ONLY => [],
+        };
+
+        foreach ($coreRequired as $reqField) {
             if (!in_array($reqField, $mappedTargetValues, true)) {
                 throw DataExchangeDomainException::schemaViolation(
                     "Required schema field '{$reqField}' is missing from column mapping."
                 );
+            }
+        }
+
+        // Check date of birth
+        if ($job->mode === ImportMode::CREATE_ONLY) {
+            if (!in_array('dob', $mappedTargetValues, true) && !in_array('date_of_birth', $mappedTargetValues, true)) {
+                throw DataExchangeDomainException::schemaViolation("Date of birth field ('dob' or 'date_of_birth') is required.");
+            }
+            if (!in_array('primary_guardian.phone', $mappedTargetValues, true) && !in_array('primary_guardian_phone', $mappedTargetValues, true)) {
+                throw DataExchangeDomainException::schemaViolation("Primary guardian phone ('primary_guardian.phone') is required.");
             }
         }
 
@@ -206,7 +242,7 @@ class ImportMappingValidationService
      */
     public function validateImport(ImportJob $job, int $actorId): array
     {
-        $mapping = $job->mapping;
+        $mapping = $job->mappings()->latest('id')->first();
         if (!$mapping) {
             throw DataExchangeDomainException::workflowConflict('Cannot validate import job without saving column mapping first.');
         }
@@ -277,6 +313,17 @@ class ImportMappingValidationService
                 } else {
                     $normalizedPayload[$targetKey] = trim($rawVal);
                 }
+            }
+
+            // Alias normalization
+            if (isset($normalizedPayload['date_of_birth']) && !isset($normalizedPayload['dob'])) {
+                $normalizedPayload['dob'] = $normalizedPayload['date_of_birth'];
+            }
+            if (isset($normalizedPayload['dob']) && !isset($normalizedPayload['date_of_birth'])) {
+                $normalizedPayload['date_of_birth'] = $normalizedPayload['dob'];
+            }
+            if (isset($normalizedPayload['primary_guardian_phone']) && !isset($normalizedPayload['primary_guardian.phone'])) {
+                $normalizedPayload['primary_guardian.phone'] = $normalizedPayload['primary_guardian_phone'];
             }
 
             // Field-level semantic validations (D08-F04-AT05)
@@ -404,7 +451,7 @@ class ImportMappingValidationService
                             $matchQuery->where('name_bn', 'like', "%{$nameBn}%");
                         }
                         if ($dob) {
-                            $matchQuery->orWhere('dob', $dob);
+                            $matchQuery->orWhere('date_of_birth', $dob);
                         }
 
                         $potentialMatches = $matchQuery->take(3)->get();
@@ -414,7 +461,7 @@ class ImportMappingValidationService
                                     'student_id' => $pm->student_id,
                                     'name_bn' => $pm->name_bn,
                                     'name_en' => $pm->name_en,
-                                    'dob' => $pm->dob?->format('Y-m-d'),
+                                    'dob' => $pm->date_of_birth?->format('Y-m-d'),
                                     'status' => $pm->status?->value ?? (string)$pm->status,
                                     'confidence' => 0.85,
                                 ];
@@ -436,10 +483,60 @@ class ImportMappingValidationService
             } elseif ($job->mode === ImportMode::MATCH_UPDATE) {
                 $action = ImportRowAction::MATCH_UPDATE;
                 $studentIdVal = $normalizedPayload['student_id'] ?? null;
+                $rowDiff = null;
+
                 if ($studentIdVal) {
                     $existing = Student::where('student_id', $studentIdVal)->first();
                     if ($existing) {
                         $targetStudentPk = $existing->id;
+                        $diff = [];
+                        $comparable = ['name_bn', 'name_en', 'gender', 'dob', 'present_address_bn', 'permanent_address_bn'];
+                        foreach ($comparable as $f) {
+                            $src = $normalizedPayload[$f] ?? null;
+                            $dbVal = $f === 'dob' ? ($existing->dob?->format('Y-m-d') ?: ($existing->date_of_birth ? Carbon::parse($existing->date_of_birth)->format('Y-m-d') : null)) : ($existing->{$f} ?? null);
+                            if ($src !== null && $src !== '' && $src !== $dbVal) {
+                                $diff[$f] = [
+                                    'old' => $dbVal,
+                                    'new' => $src,
+                                    'sensitive' => in_array($f, ['name_bn', 'name_en', 'gender', 'dob'], true),
+                                ];
+                            }
+                        }
+
+                        $phoneVal = $normalizedPayload['primary_guardian.phone'] ?? ($normalizedPayload['primary_guardian_phone'] ?? null);
+                        if ($phoneVal) {
+                            $pri = $existing->guardians()->wherePivot('is_primary', true)->first();
+                            if ($pri && $pri->phone !== $phoneVal) {
+                                $diff['primary_guardian.phone'] = [
+                                    'old' => $pri->phone,
+                                    'new' => $phoneVal,
+                                    'sensitive' => true,
+                                ];
+                            }
+                        }
+
+                        $rowDiff = empty($diff) ? null : $diff;
+
+                        $hasSensitive = false;
+                        foreach ($diff as $df) {
+                            if (!empty($df['sensitive'])) {
+                                $hasSensitive = true;
+                                break;
+                            }
+                        }
+
+                        if ($hasSensitive) {
+                            $rowIssues[] = [
+                                'code' => 'SENSITIVE_FIELD_UPDATE',
+                                'severity' => ImportIssueSeverity::REVIEW,
+                                'field' => null,
+                                'source_column' => null,
+                                'explanation_key' => 'SENSITIVE_DIFF_REVIEW',
+                                'message_bn' => 'শিক্ষার্থীর সংবেদনশীল তথ্যে পরিবর্তন সনাক্ত হয়েছে। পর্যালোচনার প্রয়োজন।',
+                                'message_en' => 'Sensitive student profile changes detected. Requires manual review.',
+                                'meta_json' => ['diff' => $diff],
+                            ];
+                        }
                     } else {
                         $rowIssues[] = [
                             'code' => 'STUDENT_NOT_FOUND',
@@ -452,9 +549,103 @@ class ImportMappingValidationService
                             'meta_json' => ['student_id' => $studentIdVal],
                         ];
                     }
+                } else {
+                    $rowIssues[] = [
+                        'code' => 'IDENTITY_ANCHOR_REQUIRED',
+                        'severity' => ImportIssueSeverity::ERROR,
+                        'field' => 'student_id',
+                        'source_column' => null,
+                        'explanation_key' => 'STUDENT_ID_ANCHOR_REQUIRED',
+                        'message_bn' => 'বিদ্যমান শিক্ষার্থী আপডেটের জন্য শিক্ষার্থী আইডি আবশ্যক।',
+                        'message_en' => 'Student ID anchor is required for existing student updates.',
+                    ];
                 }
             } elseif ($job->mode === ImportMode::ENROLL_ONLY) {
                 $action = ImportRowAction::ENROLL;
+                $studentIdVal = $normalizedPayload['student_id'] ?? ($normalizedPayload['system_student_id'] ?? null);
+
+                if (!$studentIdVal) {
+                    $rowIssues[] = [
+                        'code' => 'STUDENT_ID_REQUIRED',
+                        'severity' => ImportIssueSeverity::ERROR,
+                        'field' => 'student_id',
+                        'source_column' => null,
+                        'explanation_key' => 'ENROLL_STUDENT_ID_REQUIRED',
+                        'message_bn' => 'এনরোলমেন্টের জন্য শিক্ষার্থী আইডি আবশ্যক।',
+                        'message_en' => 'Student ID is required for enrollment staging.',
+                    ];
+                } else {
+                    $student = Student::where('student_id', $studentIdVal)->first();
+                    if (!$student) {
+                        $rowIssues[] = [
+                            'code' => 'STUDENT_NOT_FOUND',
+                            'severity' => ImportIssueSeverity::ERROR,
+                            'field' => 'student_id',
+                            'source_column' => null,
+                            'explanation_key' => 'ENROLL_STUDENT_NOT_FOUND',
+                            'message_bn' => "শিক্ষার্থী আইডি '{$studentIdVal}' সিস্টেমে পাওয়া যায়নি।",
+                            'message_en' => "Student ID '{$studentIdVal}' not found.",
+                        ];
+                    } else {
+                        $targetStudentPk = $student->id;
+
+                        // Program check
+                        $programCode = $normalizedPayload['academic_program_code'] ?? ($normalizedPayload['program_code'] ?? null);
+                        if ($programCode) {
+                            $program = DB::table('academic_programs')->where('code', $programCode)->first();
+                            if (!$program) {
+                                $rowIssues[] = [
+                                    'code' => 'PROGRAM_NOT_FOUND',
+                                    'severity' => ImportIssueSeverity::ERROR,
+                                    'field' => 'academic_program_code',
+                                    'explanation_key' => 'PROGRAM_NOT_FOUND',
+                                    'message_bn' => "একাডেমিক প্রোগ্রাম কোড '{$programCode}' পাওয়া যায়নি।",
+                                    'message_en' => "Academic program code '{$programCode}' not found.",
+                                ];
+                            }
+                        }
+
+                        // Period / Session check
+                        $periodCode = $normalizedPayload['academic_period_code'] ?? ($normalizedPayload['period_code'] ?? null);
+                        $period = null;
+                        if ($periodCode) {
+                            $period = DB::table('academic_periods')
+                                ->where('label', $periodCode)
+                                ->orWhere('id', is_numeric($periodCode) ? (int)$periodCode : 0)
+                                ->first();
+                            if (!$period) {
+                                $rowIssues[] = [
+                                    'code' => 'PERIOD_NOT_FOUND',
+                                    'severity' => ImportIssueSeverity::ERROR,
+                                    'field' => 'academic_period_code',
+                                    'explanation_key' => 'PERIOD_NOT_FOUND',
+                                    'message_bn' => "একাডেমিক সেশন/পিরিয়ড '{$periodCode}' পাওয়া যায়নি।",
+                                    'message_en' => "Academic period '{$periodCode}' not found.",
+                                ];
+                            }
+                        }
+
+                        // Duplicate enrollment check
+                        if ($period && $student) {
+                            $existingEnrollment = DB::table('enrollments')
+                                ->where('student_id', $student->id)
+                                ->where('academic_period_id', $period->id)
+                                ->whereNotIn('status', ['CANCELLED', 'REJECTED'])
+                                ->first();
+
+                            if ($existingEnrollment) {
+                                $rowIssues[] = [
+                                    'code' => 'DUPLICATE_ENROLLMENT',
+                                    'severity' => ImportIssueSeverity::ERROR,
+                                    'field' => 'academic_period_code',
+                                    'explanation_key' => 'DUPLICATE_ENROLLMENT',
+                                    'message_bn' => 'শিক্ষার্থী ইতিমধ্যে এই সেশনে এনরোল্ড রয়েছে।',
+                                    'message_en' => 'Student is already enrolled in this academic period.',
+                                ];
+                            }
+                        }
+                    }
+                }
             }
 
             // Determine Row Status
@@ -493,6 +684,7 @@ class ImportMappingValidationService
                 'action' => $action,
                 'target_student_pk' => $targetStudentPk,
                 'candidate_matches_json' => empty($candidateMatches) ? null : $candidateMatches,
+                'diff_json' => $rowDiff ?? null,
             ]);
 
             // Persist Issues

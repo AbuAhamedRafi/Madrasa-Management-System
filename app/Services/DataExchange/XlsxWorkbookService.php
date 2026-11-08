@@ -368,59 +368,51 @@ class XlsxWorkbookService
             throw DataExchangeDomainException::fileUnsafe('Worksheet content could not be read.');
         }
 
-        // 3. Parse rows using XMLReader
-        $xmlReader = new \XMLReader();
-        $xmlReader->XML($worksheetXml);
+        // 3. Parse rows using DOMDocument
+        $dom = new DOMDocument();
+        @$dom->loadXML($worksheetXml);
+        $rowNodes = $dom->getElementsByTagName('row');
 
         $rows = [];
 
-        while ($xmlReader->read()) {
-            if ($xmlReader->nodeType === \XMLReader::ELEMENT && $xmlReader->localName === 'row') {
-                $rAttr = $xmlReader->getAttribute('r');
-                $currentRowNumber = $rAttr ? (int)$rAttr : (count($rows) + 1);
-                $currentRowCells = [];
+        foreach ($rowNodes as $rowNode) {
+            $rAttr = $rowNode->getAttribute('r');
+            $currentRowNumber = $rAttr ? (int)$rAttr : (count($rows) + 1);
+            $currentRowCells = [];
 
-                $rowXml = $xmlReader->readOuterXml();
-                if ($rowXml) {
-                    $rowDom = new DOMDocument();
-                    @$rowDom->loadXML($rowXml);
-                    $cNodes = $rowDom->getElementsByTagName('c');
+            $cNodes = $rowNode->getElementsByTagName('c');
+            foreach ($cNodes as $c) {
+                $ref = $c->getAttribute('r');
+                $type = $c->getAttribute('t');
+                $val = '';
 
-                    foreach ($cNodes as $c) {
-                        $ref = $c->getAttribute('r');
-                        $type = $c->getAttribute('t');
-                        $val = '';
-
-                        if ($type === 's') {
-                            $vNode = $c->getElementsByTagName('v')->item(0);
-                            $idx = $vNode ? (int)$vNode->nodeValue : null;
-                            $val = ($idx !== null && isset($sharedStrings[$idx])) ? $sharedStrings[$idx] : '';
-                        } elseif ($type === 'inlineStr') {
-                            $isNode = $c->getElementsByTagName('is')->item(0);
-                            $val = $isNode ? $isNode->nodeValue : '';
-                        } else {
-                            $vNode = $c->getElementsByTagName('v')->item(0);
-                            $val = $vNode ? $vNode->nodeValue : '';
-                        }
-
-                        if ($ref && preg_match('/^([A-Z]+)(\d+)$/', $ref, $m)) {
-                            $colIdx = self::columnLetterToIndex($m[1]);
-                            $currentRowCells[$colIdx] = trim((string)$val);
-                        } else {
-                            $currentRowCells[] = trim((string)$val);
-                        }
-                    }
+                if ($type === 's') {
+                    $vNode = $c->getElementsByTagName('v')->item(0);
+                    $idx = $vNode ? (int)$vNode->nodeValue : null;
+                    $val = ($idx !== null && isset($sharedStrings[$idx])) ? $sharedStrings[$idx] : '';
+                } elseif ($type === 'inlineStr') {
+                    $isNode = $c->getElementsByTagName('is')->item(0);
+                    $val = $isNode ? $isNode->nodeValue : '';
+                } else {
+                    $vNode = $c->getElementsByTagName('v')->item(0);
+                    $val = $vNode ? $vNode->nodeValue : '';
                 }
 
-                $rows[$currentRowNumber] = $currentRowCells;
-
-                if ($maxRows > 0 && count($rows) >= $maxRows) {
-                    break;
+                if ($ref && preg_match('/^([A-Z]+)(\d+)$/', $ref, $m)) {
+                    $colIdx = self::columnLetterToIndex($m[1]);
+                    $currentRowCells[$colIdx] = trim((string)$val);
+                } else {
+                    $currentRowCells[] = trim((string)$val);
                 }
+            }
+
+            $rows[$currentRowNumber] = $currentRowCells;
+
+            if ($maxRows > 0 && count($rows) >= $maxRows) {
+                break;
             }
         }
 
-        $xmlReader->close();
         return $rows;
     }
 }

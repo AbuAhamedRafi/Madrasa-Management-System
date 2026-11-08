@@ -540,5 +540,21 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
             ->middleware('permission:imports.read');
         Route::get('/import-jobs/{id}/rows', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'rows'])
             ->middleware('permission:imports.read');
+
+        // D08: Import Resolutions & Revalidation - F05 & F06
+        Route::put('/import-jobs/{id}/resolutions', [\App\Http\Controllers\DataExchange\ImportResolutionController::class, 'resolutions'])
+            ->middleware('permission:imports.review');
+        Route::post('/import-jobs/{id}/revalidate', [\App\Http\Controllers\DataExchange\ImportResolutionController::class, 'revalidate'])
+            ->middleware('permission:imports.validate');
+
+        // D08: Import Execution Lifecycle & Result - F08 & F09
+        Route::post('/import-jobs/{id}/commit', [\App\Http\Controllers\DataExchange\ImportExecutionController::class, 'commit'])
+            ->middleware('permission:imports.commit');
+        Route::post('/import-jobs/{id}/cancel', [\App\Http\Controllers\DataExchange\ImportExecutionController::class, 'cancel'])
+            ->middleware('permission:imports.cancel');
+        Route::post('/import-jobs/{id}/retry-failed', [\App\Http\Controllers\DataExchange\ImportExecutionController::class, 'retryFailed'])
+            ->middleware('permission:imports.commit');
+        Route::get('/import-jobs/{id}/result-file', [\App\Http\Controllers\DataExchange\ImportExecutionController::class, 'downloadResultFile'])
+            ->middleware('permission:imports.read');
     });
 });

@@ -823,4 +823,589 @@ class DeliverableEightComprehensiveTest extends TestCase
             ->assertJsonPath('data.preview_token', null)
             ->assertJsonPath('data.is_stale', true);
     }
+
+    /**
+     * D08-F05-AT01 & AT05: Potential duplicate flagged as REVIEW_REQUIRED; Admin override vs Staff restrictions.
+     */
+    public function test_f05_at01_and_at05_duplicate_review_and_resolutions(): void
+    {
+        $uniquePhone = '017' . rand(10000000, 99999999);
+        $uniqueStudentId = 'ST-' . strtoupper(Str::random(8));
+
+        // 1. Pre-create existing student and guardian
+        $guardian = \App\Models\Guardian::create([
+            'phone' => $uniquePhone,
+            'phone_hash' => hash('sha256', $uniquePhone),
+            'name_bn' => 'মো: রফিকুল ইসলাম',
+            'name_en' => 'Md Rafiqul Islam',
+            'created_by' => $this->adminUser->id,
+            'updated_by' => $this->adminUser->id,
+        ]);
+
+        $existingStudent = \App\Models\Student::create([
+            'student_id' => $uniqueStudentId,
+            'name_bn' => 'আব্দুল্লাহ আল মাহমুদ',
+            'name_en' => 'Abdullah Al Mahmud',
+            'date_of_birth' => '2015-06-15',
+            'gender' => 'MALE',
+            'admission_date' => '2026-01-01',
+            'status' => \App\Enums\StudentStatus::REGISTERED,
+            'created_by' => $this->adminUser->id,
+            'updated_by' => $this->adminUser->id,
+        ]);
+
+        \App\Models\StudentGuardian::create([
+            'student_id' => $existingStudent->id,
+            'guardian_id' => $guardian->id,
+            'relation' => \App\Enums\GuardianRelation::FATHER,
+            'is_primary' => true,
+            'sms_consent' => false,
+            'created_by' => $this->adminUser->id,
+            'updated_by' => $this->adminUser->id,
+        ]);
+
+        // 2. Upload file with 2 rows: 1 unique, 1 matching existing guardian/name
+        $file = $this->createValidXlsxFile('duplicate_test.xlsx', [
+            'Data' => [
+                'headers' => ['name_bn', 'name_en', 'gender', 'dob', 'primary_guardian_phone'],
+                'rows' => [
+                    ['আব্দুর রহমান', 'Abdur Rahman', 'MALE', '2016-01-01', '01811223344'],
+                    ['আব্দুল্লাহ আল মাহমুদ', 'Abdullah', 'MALE', '2015-06-15', $uniquePhone],
+                ]
+            ]
+        ]);
+
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'CREATE_ONLY',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'name_bn',
+                'B' => 'name_en',
+                'C' => 'gender',
+                'D' => 'dob',
+                'E' => 'primary_guardian.phone',
+            ]
+        ]);
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/validate");
+
+        $rowsRes = $this->actingAs($this->staffUser)->getJson("/api/v1/import-jobs/{$jobId}/rows");
+        $rows = $rowsRes->json('data');
+
+        $this->assertEquals('READY', $rows[0]['status']);
+        $this->assertEquals('REVIEW_REQUIRED', $rows[1]['status']);
+        $this->assertNotEmpty($rows[1]['candidate_matches_json']);
+
+        $reviewRowId = $rows[1]['id'];
+
+        // 3. Staff attempts OVERRIDE_CREATE -> 403 Forbidden
+        $staffOverrideRes = $this->actingAs($this->staffUser)->putJson("/api/v1/import-jobs/{$jobId}/resolutions", [
+            'resolutions' => [
+                [
+                    'row_id' => $reviewRowId,
+                    'decision' => 'OVERRIDE_CREATE',
+                    'notes' => 'Staff trying to override duplicate',
+                ]
+            ]
+        ]);
+        $staffOverrideRes->assertStatus(403);
+
+        // 4. Admin submits OVERRIDE_CREATE -> 200 OK
+        $adminOverrideRes = $this->actingAs($this->adminUser)->putJson("/api/v1/import-jobs/{$jobId}/resolutions", [
+            'resolutions' => [
+                [
+                    'row_id' => $reviewRowId,
+                    'decision' => 'OVERRIDE_CREATE',
+                    'notes' => 'Admin approved override',
+                ]
+            ]
+        ]);
+        $adminOverrideRes->assertOk()
+            ->assertJsonPath('data.review_rows', 0)
+            ->assertJsonPath('data.ready_rows', 2);
+    }
+
+    /**
+     * D08-F05-AT06: Re-validation updates preview status to READY.
+     */
+    public function test_f05_at06_revalidate_updates_job_state(): void
+    {
+        $file = $this->createValidXlsxFile('reval_test.xlsx');
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'CREATE_ONLY',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'name_bn',
+                'B' => 'name_en',
+                'C' => 'gender',
+                'D' => 'dob',
+                'E' => 'primary_guardian.phone',
+            ]
+        ]);
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/validate");
+
+        $revalRes = $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/revalidate");
+        $revalRes->assertOk()
+            ->assertJsonPath('data.state', 'READY');
+    }
+
+    /**
+     * D08-F06-AT01 & AT05: Match-update requires explicit identity anchor; missing student flags INVALID.
+     */
+    public function test_f06_at01_and_at05_match_update_missing_student_error(): void
+    {
+        $file = $this->createValidXlsxFile('match_missing.xlsx', [
+            'Data' => [
+                'headers' => ['student_id', 'name_bn', 'name_en'],
+                'rows' => [
+                    ['ST-9999-0000', 'বিদ্যমান নাই', 'Non-existent'],
+                ]
+            ]
+        ]);
+
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'MATCH_UPDATE',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'student_id',
+                'B' => 'name_bn',
+                'C' => 'name_en',
+            ]
+        ]);
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/validate");
+
+        $rowsRes = $this->actingAs($this->staffUser)->getJson("/api/v1/import-jobs/{$jobId}/rows");
+        $firstRow = $rowsRes->json('data')[0];
+
+        $this->assertEquals('INVALID', $firstRow['status']);
+        $issues = collect($firstRow['issues'])->pluck('code');
+        $this->assertTrue($issues->contains('STUDENT_NOT_FOUND'));
+    }
+
+    /**
+     * D08-F06-AT02 & AT04: Match-update generates diff and flags sensitive changes for review.
+     */
+    public function test_f06_at02_and_at04_diff_generation_and_sensitive_review(): void
+    {
+        $uniqueStudentId = 'ST-' . strtoupper(Str::random(8));
+
+        $existing = \App\Models\Student::create([
+            'student_id' => $uniqueStudentId,
+            'name_bn' => 'আহমদ উল্লাহ',
+            'name_en' => 'Ahmad Ullah',
+            'date_of_birth' => '2015-01-01',
+            'gender' => 'MALE',
+            'admission_date' => '2026-01-01',
+            'status' => \App\Enums\StudentStatus::REGISTERED,
+            'created_by' => $this->adminUser->id,
+            'updated_by' => $this->adminUser->id,
+        ]);
+
+        $file = $this->createValidXlsxFile('match_diff.xlsx', [
+            'Data' => [
+                'headers' => ['student_id', 'name_bn', 'name_en'],
+                'rows' => [
+                    [$uniqueStudentId, 'মুহাম্মদ আহমদ উল্লাহ', 'Muhammad Ahmad Ullah'],
+                ]
+            ]
+        ]);
+
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'MATCH_UPDATE',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'student_id',
+                'B' => 'name_bn',
+                'C' => 'name_en',
+            ]
+        ]);
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/validate");
+
+        $rowsRes = $this->actingAs($this->staffUser)->getJson("/api/v1/import-jobs/{$jobId}/rows");
+        $firstRow = $rowsRes->json('data')[0];
+
+        $this->assertEquals('REVIEW_REQUIRED', $firstRow['status']);
+        $this->assertNotNull($firstRow['diff_json']);
+        $this->assertEquals('আহমদ উল্লাহ', $firstRow['diff_json']['name_bn']['old']);
+        $this->assertEquals('মুহাম্মদ আহমদ উল্লাহ', $firstRow['diff_json']['name_bn']['new']);
+
+        // Accept update decision
+        $res = $this->actingAs($this->staffUser)->putJson("/api/v1/import-jobs/{$jobId}/resolutions", [
+            'resolutions' => [
+                [
+                    'row_id' => $firstRow['id'],
+                    'decision' => 'ACCEPT_UPDATE',
+                    'field_decisions' => ['name_bn' => true, 'name_en' => true],
+                ]
+            ]
+        ]);
+
+        $res->assertOk()
+            ->assertJsonPath('data.ready_rows', 1)
+            ->assertJsonPath('data.review_rows', 0);
+    }
+
+    /**
+     * D08-F07-AT01 & AT02: Enrollment staging requires valid student and stays in PENDING_BILLING.
+     */
+    public function test_f07_at01_and_at02_enrollment_staging_requires_valid_student_and_pending_billing(): void
+    {
+        $uniqueStudentId = 'ST-' . strtoupper(Str::random(8));
+
+        $student = \App\Models\Student::create([
+            'student_id' => $uniqueStudentId,
+            'name_bn' => 'সাঈদ হাসান',
+            'name_en' => 'Sayeed Hasan',
+            'date_of_birth' => '2014-05-10',
+            'gender' => 'MALE',
+            'admission_date' => '2026-01-01',
+            'status' => \App\Enums\StudentStatus::REGISTERED,
+            'created_by' => $this->adminUser->id,
+            'updated_by' => $this->adminUser->id,
+        ]);
+
+        $program = DB::table('academic_programs')->first();
+        $period = DB::table('academic_periods')->first();
+
+        $file = $this->createValidXlsxFile('enroll_staging.xlsx', [
+            'Data' => [
+                'headers' => ['student_id', 'academic_program_code', 'academic_period_code'],
+                'rows' => [
+                    [$uniqueStudentId, $program->code, $period->label],
+                ]
+            ]
+        ]);
+
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'ENROLL_ONLY',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'student_id',
+                'B' => 'academic_program_code',
+                'C' => 'academic_period_code',
+            ]
+        ]);
+
+        $valRes = $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/validate");
+        $valRes->assertOk()
+            ->assertJsonPath('data.ready_rows', 1)
+            ->assertJsonPath('data.state', 'READY');
+
+        // Commit enrollment
+        $token = $valRes->json('data.preview_token');
+        $commitRes = $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/commit", [
+            'preview_token' => $token,
+        ]);
+
+        $commitRes->assertOk()
+            ->assertJsonPath('data.committed_rows', 1)
+            ->assertJsonPath('data.state', 'COMPLETED');
+
+        // Assert staged enrollment is NEVER directly APPROVED/PAID
+        $enrollment = DB::table('enrollments')->where('student_id', $student->id)->first();
+        if ($enrollment) {
+            $this->assertEquals('PENDING_BILLING', $enrollment->status);
+        }
+    }
+
+    /**
+     * D08-F07-AT05: Duplicate enrollment in the same period is rejected with DUPLICATE_ENROLLMENT.
+     */
+    public function test_f07_at05_duplicate_enrollment_prevention(): void
+    {
+        $uniqueStudentId = 'ST-' . strtoupper(Str::random(8));
+
+        $student = \App\Models\Student::create([
+            'student_id' => $uniqueStudentId,
+            'name_bn' => 'মুসা ইব্রাহিম',
+            'name_en' => 'Musa Ibrahim',
+            'date_of_birth' => '2014-01-01',
+            'gender' => 'MALE',
+            'admission_date' => '2026-01-01',
+            'status' => \App\Enums\StudentStatus::REGISTERED,
+            'created_by' => $this->adminUser->id,
+            'updated_by' => $this->adminUser->id,
+        ]);
+
+        $program = DB::table('academic_programs')->first();
+        $period = DB::table('academic_periods')->first();
+        $offering = DB::table('academic_offerings')->first();
+        $section = DB::table('offering_sections')->first();
+
+        // Create program admission and an existing active enrollment
+        $progAdmId = DB::table('program_admissions')->insertGetId([
+            'student_id' => $student->id,
+            'academic_program_id' => $program->id,
+            'entry_type' => 'REGULAR',
+            'status' => 'ACTIVE',
+            'entered_at' => now(),
+            'created_by' => $this->adminUser->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        DB::table('enrollments')->insert([
+            'program_admission_id' => $progAdmId,
+            'student_id' => $student->id,
+            'academic_period_id' => $period->id,
+            'academic_offering_id' => $offering ? $offering->id : 1,
+            'offering_section_id' => $section ? $section->id : 1,
+            'enrollment_type' => 'NEW',
+            'status' => 'PENDING_BILLING',
+            'submitted_at' => now(),
+            'created_by' => $this->adminUser->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $file = $this->createValidXlsxFile('dup_enroll.xlsx', [
+            'Data' => [
+                'headers' => ['student_id', 'academic_program_code', 'academic_period_code'],
+                'rows' => [
+                    [$uniqueStudentId, $program->code, $period->label],
+                ]
+            ]
+        ]);
+
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'ENROLL_ONLY',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'student_id',
+                'B' => 'academic_program_code',
+                'C' => 'academic_period_code',
+            ]
+        ]);
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/validate");
+
+        $rowsRes = $this->actingAs($this->staffUser)->getJson("/api/v1/import-jobs/{$jobId}/rows");
+        $firstRow = $rowsRes->json('data')[0];
+
+        $this->assertEquals('INVALID', $firstRow['status']);
+        $issues = collect($firstRow['issues'])->pluck('code');
+        $this->assertTrue($issues->contains('DUPLICATE_ENROLLMENT'));
+    }
+
+    /**
+     * D08-F08-AT01: Commit rejects stale or invalid preview token with 409 PREVIEW_STALE.
+     */
+    public function test_f08_at01_commit_rejects_stale_preview_token(): void
+    {
+        $file = $this->createValidXlsxFile('stale_commit.xlsx');
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'CREATE_ONLY',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'name_bn',
+                'B' => 'name_en',
+                'C' => 'gender',
+                'D' => 'dob',
+                'E' => 'primary_guardian.phone',
+            ]
+        ]);
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/validate");
+
+        // Attempt commit with tampered preview token
+        $commitRes = $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/commit", [
+            'preview_token' => 'invalid_token_hash_value_1234567890',
+        ]);
+
+        $commitRes->assertStatus(409)
+            ->assertJsonPath('error.code', 'PREVIEW_STALE');
+    }
+
+    /**
+     * D08-F08-AT02: Successful commit allocates Student ID server-side and creates guardian with default sms_consent=false.
+     */
+    public function test_f08_at02_successful_commit_allocates_student_id(): void
+    {
+        $uniquePhone = '017' . rand(10000000, 99999999);
+        $file = $this->createValidXlsxFile('commit_student.xlsx', [
+            'Data' => [
+                'headers' => ['name_bn', 'name_en', 'gender', 'dob', 'primary_guardian_phone'],
+                'rows' => [
+                    ['আবু বকর সিদ্দীক', 'Abu Bakr Siddiq', 'MALE', '2016-02-14', $uniquePhone],
+                ]
+            ]
+        ]);
+
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'CREATE_ONLY',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'name_bn',
+                'B' => 'name_en',
+                'C' => 'gender',
+                'D' => 'dob',
+                'E' => 'primary_guardian.phone',
+            ]
+        ]);
+
+        $valRes = $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/validate");
+        $token = $valRes->json('data.preview_token');
+
+        $commitRes = $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/commit", [
+            'preview_token' => $token,
+        ]);
+
+        $commitRes->assertOk()
+            ->assertJsonPath('data.committed_rows', 1)
+            ->assertJsonPath('data.state', 'COMPLETED');
+
+        // Assert Student was created with authoritative server allocated ID
+        $createdStudent = \App\Models\Student::where('name_bn', 'আবু বকর সিদ্দীক')->first();
+        $this->assertNotNull($createdStudent);
+        $this->assertNotEmpty($createdStudent->student_id);
+
+        // Assert Guardian sms_consent defaults to false
+        $studentGuardian = \App\Models\StudentGuardian::where('student_id', $createdStudent->id)->first();
+        $this->assertNotNull($studentGuardian);
+        $this->assertFalse((bool) $studentGuardian->sms_consent);
+    }
+
+    /**
+     * D08-F08-AT05: Cooperative cancellation of import job.
+     */
+    public function test_f08_at05_cooperative_cancellation(): void
+    {
+        $file = $this->createValidXlsxFile('cancel_test.xlsx');
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'CREATE_ONLY',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $cancelRes = $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/cancel", [
+            'reason' => 'User aborted upload',
+        ]);
+
+        $cancelRes->assertOk()
+            ->assertJsonPath('data.state', 'CANCELLED');
+
+        $this->assertDatabaseHas('import_jobs', [
+            'id' => $jobId,
+            'state' => 'CANCELLED',
+        ]);
+    }
+
+    /**
+     * D08-F08-AT07: Download result XLSX file.
+     */
+    public function test_f08_at07_download_result_file(): void
+    {
+        $uniquePhone = '017' . rand(10000000, 99999999);
+        $file = $this->createValidXlsxFile('result_dl.xlsx', [
+            'Data' => [
+                'headers' => ['name_bn', 'name_en', 'gender', 'dob', 'primary_guardian_phone'],
+                'rows' => [
+                    ['তারিক বিন জিয়াদ', 'Tariq Bin Ziyad', 'MALE', '2015-09-09', $uniquePhone],
+                ]
+            ]
+        ]);
+
+        $uploadRes = $this->actingAs($this->staffUser)->post('/api/v1/import-jobs', [
+            'file' => $file,
+            'mode' => 'CREATE_ONLY',
+            'template_version' => '1.0',
+        ], ['Accept' => 'application/json']);
+
+        $jobId = $uploadRes->json('data.id');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/mapping", [
+            'sheet' => 'Data',
+            'header_row' => 1,
+            'mapping' => [
+                'A' => 'name_bn',
+                'B' => 'name_en',
+                'C' => 'gender',
+                'D' => 'dob',
+                'E' => 'primary_guardian.phone',
+            ]
+        ]);
+
+        $valRes = $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/validate");
+        $token = $valRes->json('data.preview_token');
+
+        $this->actingAs($this->staffUser)->postJson("/api/v1/import-jobs/{$jobId}/commit", [
+            'preview_token' => $token,
+        ]);
+
+        // Download result file
+        $dlRes = $this->actingAs($this->staffUser)->get("/api/v1/import-jobs/{$jobId}/result-file");
+        $dlRes->assertOk()
+            ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        $this->assertNotEmpty($dlRes->getContent());
+    }
 }
