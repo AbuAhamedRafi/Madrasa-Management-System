@@ -630,11 +630,11 @@ class DeliverableTwoComprehensiveTest extends TestCase
             ->assertStatus(409)
             ->assertJsonPath('error.code', 'ACTIVE_DEPENDENCY_EXISTS');
 
-        // AT-D02-36: D04/D06/D07 tables are not introduced prematurely (students table is introduced in D03)
+        // AT-D02-36: D07 tables are introduced in D07 (students in D03, invoices in D06, payment_slips in D07)
         $this->assertTrue(Schema::hasTable('students'));
+        $this->assertTrue(Schema::hasTable('invoices'));
         $this->assertFalse(Schema::hasTable('admissions'));
-        $this->assertFalse(Schema::hasTable('payment_slips'));
-        $this->assertFalse(Schema::hasTable('invoices'));
+        $this->assertTrue(Schema::hasTable('payment_slips'));
     }
 }
 

@@ -31,6 +31,14 @@ use App\Http\Controllers\Admissions\SessionProgressionController;
 use App\Http\Controllers\Admissions\EnrollmentActionController;
 use App\Http\Controllers\Admissions\EnrollmentEventController;
 use App\Http\Controllers\Authentication\ActivationController;
+use App\Http\Controllers\Billing\BillingDashboardController;
+use App\Http\Controllers\Billing\BillingRunController;
+use App\Http\Controllers\Billing\FeeAdjustmentController;
+use App\Http\Controllers\Billing\FeeCategoryController;
+use App\Http\Controllers\Billing\FeeStructureController;
+use App\Http\Controllers\Billing\InstallmentPlanController;
+use App\Http\Controllers\Billing\InvoiceController;
+use App\Http\Controllers\Billing\StudentBillingLedgerController;
 use App\Http\Controllers\Promotions\IndividualPromotionController;
 use App\Http\Controllers\Promotions\PromotionBatchController;
 use App\Http\Controllers\Promotions\PromotionItemController;
@@ -39,9 +47,10 @@ use App\Http\Controllers\UserManagement\UserController;
 use App\Http\Controllers\UserProfile\ProfileController;
 use Illuminate\Support\Facades\Route;
 
-// Public auth endpoints
-Route::prefix('v1/auth')->group(function () {
-    Route::post('/activate', [ActivationController::class, 'activate']);
+// Public auth & verification endpoints
+Route::prefix('v1')->group(function () {
+    Route::post('/auth/activate', [ActivationController::class, 'activate']);
+    Route::get('/verify/payment-slip/{token}', [\App\Http\Controllers\Payments\PublicSlipVerificationController::class, 'verify']);
 });
 
 // Authenticated session & self-service profile endpoints
@@ -298,5 +307,276 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
         Route::get('/batches/{id}/events', [PromotionBatchController::class, 'events'])
             ->whereNumber('id')
             ->middleware('permission:promotions.audit.read');
+    });
+
+    // D06: Fee Structures, Billing & Invoice Management routes
+    Route::prefix('v1')->group(function () {
+        // 1. Billing Dashboard Summary
+        Route::get('/billing/summary', [BillingDashboardController::class, 'summary'])
+            ->middleware('permission:billing.read');
+
+        // 2-4. Fee Categories
+        Route::get('/fee-categories', [FeeCategoryController::class, 'index'])
+            ->middleware('permission:billing.config.read');
+        Route::post('/fee-categories', [FeeCategoryController::class, 'store'])
+            ->middleware('permission:billing.config.write');
+        Route::patch('/fee-categories/{id}', [FeeCategoryController::class, 'update'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.config.write');
+
+        // 5-10. Fee Structures
+        Route::get('/fee-structures', [FeeStructureController::class, 'index'])
+            ->middleware('permission:billing.config.read');
+        Route::post('/fee-structures', [FeeStructureController::class, 'store'])
+            ->middleware('permission:billing.config.write');
+        Route::get('/fee-structures/{id}', [FeeStructureController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.config.read');
+        Route::patch('/fee-structures/{id}', [FeeStructureController::class, 'update'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.config.write');
+        Route::post('/fee-structures/{id}/publish', [FeeStructureController::class, 'publish'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.config.publish');
+        Route::post('/fee-structures/{id}/archive', [FeeStructureController::class, 'archive'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.config.publish');
+
+        // 11-17. Billing Runs
+        Route::get('/billing-runs', [BillingRunController::class, 'index'])
+            ->middleware('permission:billing.read');
+        Route::post('/billing-runs/preview', [BillingRunController::class, 'preview'])
+            ->middleware('permission:billing.runs.create');
+        Route::post('/billing-runs', [BillingRunController::class, 'store'])
+            ->middleware('permission:billing.runs.create');
+        Route::get('/billing-runs/{id}', [BillingRunController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.read');
+        Route::get('/billing-runs/{id}/items', [BillingRunController::class, 'items'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.read');
+        Route::post('/billing-runs/{id}/execute', [BillingRunController::class, 'execute'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.runs.execute');
+        Route::post('/billing-runs/{id}/retry', [BillingRunController::class, 'retry'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.runs.execute');
+
+        // 18-23. Invoices
+        Route::get('/invoices', [InvoiceController::class, 'index'])
+            ->middleware('permission:billing.invoices.read');
+        Route::post('/invoices/preview', [InvoiceController::class, 'preview'])
+            ->middleware('permission:billing.invoices.create');
+        Route::post('/invoices', [InvoiceController::class, 'store'])
+            ->middleware('permission:billing.invoices.create');
+        Route::get('/invoices/{id}', [InvoiceController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.invoices.read');
+        Route::post('/invoices/{id}/issue', [InvoiceController::class, 'issue'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.invoices.issue');
+        Route::post('/invoices/{id}/void', [InvoiceController::class, 'void'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.invoices.void');
+
+        // 24-25. Installment Plans
+        Route::get('/invoices/{id}/installment-plan', [InstallmentPlanController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.installments.read');
+        Route::put('/invoices/{id}/installment-plan', [InstallmentPlanController::class, 'update'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.installments.manage');
+
+        // 26-30. Adjustment Requests
+        Route::get('/adjustment-requests', [FeeAdjustmentController::class, 'index'])
+            ->middleware('permission:billing.adjustments.read');
+        Route::post('/adjustment-requests', [FeeAdjustmentController::class, 'store'])
+            ->middleware('permission:billing.adjustments.request');
+        Route::get('/adjustment-requests/{id}', [FeeAdjustmentController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.adjustments.read');
+        Route::post('/adjustment-requests/{id}/approve', [FeeAdjustmentController::class, 'approve'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.adjustments.approve');
+        Route::post('/adjustment-requests/{id}/reject', [FeeAdjustmentController::class, 'reject'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.adjustments.approve');
+
+        // 31. Student Billing Ledger
+        Route::get('/students/{id}/billing-ledger', [StudentBillingLedgerController::class, 'show'])
+            ->whereNumber('id')
+            ->middleware('permission:billing.invoices.read');
+
+        // ==========================================
+        // D07: Cash Collection, Payment Slips & Receipts
+        // ==========================================
+        // API-01: Dashboard
+        Route::get('/payments/dashboard', [\App\Http\Controllers\Payments\PaymentDashboardController::class, 'index'])
+            ->middleware('permission:payments.read');
+
+        // API-02 - API-07: Payment Slips
+        Route::get('/payment-slips', [\App\Http\Controllers\Payments\PaymentSlipController::class, 'index'])
+            ->middleware('permission:payments.slips.read');
+        Route::post('/payment-slips', [\App\Http\Controllers\Payments\PaymentSlipController::class, 'store'])
+            ->middleware('permission:payments.slips.create');
+        Route::get('/payment-slips/lookup/{slipNumber}', [\App\Http\Controllers\Payments\PaymentSlipController::class, 'lookupByNumber'])
+            ->middleware('permission:payments.slips.read');
+        Route::get('/payment-slips/{slip}', [\App\Http\Controllers\Payments\PaymentSlipController::class, 'show'])
+            ->whereNumber('slip')
+            ->middleware('permission:payments.slips.read');
+        Route::post('/payment-slips/{slip}/void', [\App\Http\Controllers\Payments\PaymentSlipController::class, 'void'])
+            ->whereNumber('slip')
+            ->middleware('permission:payments.slips.void');
+        Route::get('/payment-slips/{slip}/print', [\App\Http\Controllers\Payments\PaymentSlipController::class, 'printPayload'])
+            ->whereNumber('slip')
+            ->middleware('permission:payments.slips.read');
+
+        // API-09 - API-12: Cash Collection & Payments
+        Route::post('/payment-slips/{slip}/collect-cash', [\App\Http\Controllers\Payments\CashCollectionController::class, 'collectBySlip'])
+            ->whereNumber('slip')
+            ->middleware('permission:payments.collect');
+        Route::post('/payments/cash', [\App\Http\Controllers\Payments\CashCollectionController::class, 'store'])
+            ->middleware('permission:payments.collect');
+        Route::get('/payments', [\App\Http\Controllers\Payments\PaymentController::class, 'index'])
+            ->middleware('permission:payments.read');
+        Route::get('/payments/{payment}', [\App\Http\Controllers\Payments\PaymentController::class, 'show'])
+            ->whereNumber('payment')
+            ->middleware('permission:payments.read');
+
+        // API-13 - API-16: Payment Receipts
+        Route::get('/payments/{payment}/receipt', [\App\Http\Controllers\Payments\PaymentReceiptController::class, 'showByPayment'])
+            ->whereNumber('payment')
+            ->middleware('permission:payments.receipts.read');
+        Route::get('/payment-receipts/{receipt}', [\App\Http\Controllers\Payments\PaymentReceiptController::class, 'show'])
+            ->whereNumber('receipt')
+            ->middleware('permission:payments.receipts.read');
+        Route::get('/payment-receipts/{receipt}/print', [\App\Http\Controllers\Payments\PaymentReceiptController::class, 'printPayload'])
+            ->whereNumber('receipt')
+            ->middleware('permission:payments.receipts.read');
+        Route::post('/payment-receipts/{receipt}/reprint', [\App\Http\Controllers\Payments\PaymentReceiptController::class, 'reprint'])
+            ->whereNumber('receipt')
+            ->middleware('permission:payments.receipts.read');
+
+        // API-17 - API-18: Student Payments Ledger & Clearance
+        Route::get('/students/{student}/payments', [\App\Http\Controllers\Payments\StudentPaymentLedgerController::class, 'show'])
+            ->whereNumber('student')
+            ->middleware('permission:payments.read');
+        Route::get('/enrollments/{enrollment}/payment-clearance', [\App\Http\Controllers\Payments\AdmissionPaymentClearanceController::class, 'show'])
+            ->whereNumber('enrollment')
+            ->middleware('permission:payments.read');
+
+        // API-19 - API-23: Reversal Requests & Approval
+        Route::post('/payments/{payment}/reversal-requests', [\App\Http\Controllers\Payments\PaymentReversalController::class, 'storeRequest'])
+            ->whereNumber('payment')
+            ->middleware('permission:payments.reversals.request');
+        Route::get('/payment-reversal-requests', [\App\Http\Controllers\Payments\PaymentReversalController::class, 'index'])
+            ->middleware('permission:payments.reversals.read');
+        Route::get('/payment-reversal-requests/{reversalRequest}', [\App\Http\Controllers\Payments\PaymentReversalController::class, 'show'])
+            ->whereNumber('reversalRequest')
+            ->middleware('permission:payments.reversals.read');
+        Route::post('/payment-reversal-requests/{reversalRequest}/approve', [\App\Http\Controllers\Payments\PaymentReversalController::class, 'approve'])
+            ->whereNumber('reversalRequest')
+            ->middleware('permission:payments.reversals.approve');
+        Route::post('/payment-reversal-requests/{reversalRequest}/reject', [\App\Http\Controllers\Payments\PaymentReversalController::class, 'reject'])
+            ->whereNumber('reversalRequest')
+            ->middleware('permission:payments.reversals.approve');
+
+        // API-24 - API-28: Cashier Shifts
+        Route::get('/cashier-shifts', [\App\Http\Controllers\Payments\CashierShiftController::class, 'index'])
+            ->middleware('permission:payments.cashier.read');
+        Route::post('/cashier-shifts/open', [\App\Http\Controllers\Payments\CashierShiftController::class, 'open'])
+            ->middleware('permission:payments.cashier.reconcile');
+        Route::get('/cashier-shifts/{shift}', [\App\Http\Controllers\Payments\CashierShiftController::class, 'show'])
+            ->whereNumber('shift')
+            ->middleware('permission:payments.cashier.read');
+        Route::post('/cashier-shifts/{shift}/close', [\App\Http\Controllers\Payments\CashierShiftController::class, 'close'])
+            ->whereNumber('shift')
+            ->middleware('permission:payments.cashier.reconcile');
+        Route::post('/cashier-shifts/{shift}/reconcile', [\App\Http\Controllers\Payments\CashierShiftController::class, 'reconcile'])
+            ->whereNumber('shift')
+            ->middleware('permission:payments.cashier.approve');
+
+        // API-29: Guardian SMS Notifications
+        Route::get('/payment-notifications', [\App\Http\Controllers\Payments\PaymentNotificationController::class, 'index'])
+            ->middleware('permission:payments.notifications.read');
+        Route::post('/payment-notifications/{notification}/retry', [\App\Http\Controllers\Payments\PaymentNotificationController::class, 'retry'])
+            ->whereNumber('notification')
+            ->middleware('permission:payments.notifications.retry');
+
+        // D08: Data Exchange (Excel Import & Export Management) - F01 & F09
+        Route::get('/data-jobs/summary', [\App\Http\Controllers\DataExchange\DataJobController::class, 'summary'])
+            ->middleware('permission:data_jobs.read');
+        Route::get('/data-jobs/audit', [\App\Http\Controllers\DataExchange\DataJobController::class, 'audit'])
+            ->middleware('permission:data_jobs.audit.read');
+        Route::get('/data-jobs', [\App\Http\Controllers\DataExchange\DataJobController::class, 'index'])
+            ->middleware('permission:data_jobs.read');
+        Route::get('/data-jobs/{id}', [\App\Http\Controllers\DataExchange\DataJobController::class, 'show'])
+            ->middleware('permission:data_jobs.read');
+        Route::get('/data-jobs/{id}/events', [\App\Http\Controllers\DataExchange\DataJobController::class, 'events'])
+            ->middleware('permission:data_jobs.read');
+
+        // D08: Import Templates - F02
+        Route::get('/import-templates', [\App\Http\Controllers\DataExchange\ImportTemplateController::class, 'index'])
+            ->middleware('permission:imports.templates.read');
+        Route::get('/import-templates/{type}/download', [\App\Http\Controllers\DataExchange\ImportTemplateController::class, 'download'])
+            ->middleware('permission:imports.templates.read');
+        Route::get('/import-templates/{type}/schema', [\App\Http\Controllers\DataExchange\ImportTemplateController::class, 'schema'])
+            ->middleware('permission:imports.templates.read');
+
+        // D08: Import Jobs - F03
+        Route::post('/import-jobs', [\App\Http\Controllers\DataExchange\ImportJobController::class, 'store'])
+            ->middleware('permission:imports.create');
+        Route::get('/import-jobs/{id}', [\App\Http\Controllers\DataExchange\ImportJobController::class, 'show'])
+            ->middleware('permission:imports.read');
+
+        // D08: Import Column Mapping & Preview - F04
+        Route::get('/import-jobs/{id}/columns', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'columns'])
+            ->middleware('permission:imports.read');
+        Route::post('/import-jobs/{id}/mapping', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'saveMapping'])
+            ->middleware('permission:imports.mapping.write');
+        Route::post('/import-jobs/{id}/validate', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'validateJob'])
+            ->middleware('permission:imports.validate');
+        Route::get('/import-jobs/{id}/preview', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'preview'])
+            ->middleware('permission:imports.read');
+        Route::get('/import-jobs/{id}/rows', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'rows'])
+            ->middleware('permission:imports.read');
+
+        // D08: Import Resolutions & Revalidation - F05 & F06
+        Route::put('/import-jobs/{id}/resolutions', [\App\Http\Controllers\DataExchange\ImportResolutionController::class, 'resolutions'])
+            ->middleware('permission:imports.review');
+        Route::post('/import-jobs/{id}/revalidate', [\App\Http\Controllers\DataExchange\ImportResolutionController::class, 'revalidate'])
+            ->middleware('permission:imports.validate');
+
+        // D08: Import Execution Lifecycle & Result - F08 & F09
+        Route::post('/import-jobs/{id}/commit', [\App\Http\Controllers\DataExchange\ImportExecutionController::class, 'commit'])
+            ->middleware('permission:imports.commit');
+        Route::post('/import-jobs/{id}/cancel', [\App\Http\Controllers\DataExchange\ImportExecutionController::class, 'cancel'])
+            ->middleware('permission:imports.cancel');
+        Route::post('/import-jobs/{id}/retry-failed', [\App\Http\Controllers\DataExchange\ImportExecutionController::class, 'retryFailed'])
+            ->middleware('permission:imports.commit');
+        Route::get('/import-jobs/{id}/result-file', [\App\Http\Controllers\DataExchange\ImportExecutionController::class, 'downloadResultFile'])
+            ->middleware('permission:imports.read');
+
+        // D08: Export Datasets & Jobs - F10 & F11
+        Route::get('/export-datasets', [\App\Http\Controllers\DataExchange\ExportDatasetController::class, 'index'])
+            ->middleware('permission:exports.read');
+        Route::get('/export-datasets/{key}/columns', [\App\Http\Controllers\DataExchange\ExportDatasetController::class, 'columns'])
+            ->middleware('permission:exports.read');
+        Route::post('/export-jobs/preview', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'preview'])
+            ->middleware('permission:exports.create');
+        Route::post('/export-jobs', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'store'])
+            ->middleware('permission:exports.create');
+        Route::get('/export-jobs/{id}', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'show'])
+            ->middleware('permission:exports.read');
+        Route::post('/export-jobs/{id}/cancel', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'cancel'])
+            ->middleware('permission:exports.cancel');
+        Route::get('/export-jobs/{id}/download', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'download'])
+            ->middleware('permission:exports.download');
+
+        // D09: Metric Registry - F01
+        Route::get('/report-metrics', [\App\Http\Controllers\Api\V1\Reports\ReportMetricController::class, 'index'])
+            ->middleware('permission:reports.definitions.read');
+        Route::get('/report-metrics/{metricCode}', [\App\Http\Controllers\Api\V1\Reports\ReportMetricController::class, 'show'])
+            ->middleware('permission:reports.definitions.read');
     });
 });

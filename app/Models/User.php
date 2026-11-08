@@ -25,6 +25,8 @@ class User extends Authenticatable
         'password',
         'status',
         'preferred_locale',
+        'allowed_department_ids',
+        'allowed_program_ids',
         'last_login_at',
         'disabled_at',
         'disabled_reason',
@@ -41,6 +43,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'status' => AccountStatus::class,
             'preferred_locale' => SupportedLocale::class,
+            'allowed_department_ids' => 'array',
+            'allowed_program_ids' => 'array',
             'last_login_at' => 'datetime',
             'disabled_at' => 'datetime',
         ];
