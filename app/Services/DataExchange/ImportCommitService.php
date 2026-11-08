@@ -214,6 +214,7 @@ class ImportCommitService
                     $committedCount++;
                 });
             } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Row commit failed: ' . $e->getMessage(), ['exception' => $e]);
                 // Partial failure isolation (D08-F08-AT03)
                 $failedCount++;
                 $row->update([
