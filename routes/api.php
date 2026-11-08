@@ -556,5 +556,27 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
             ->middleware('permission:imports.commit');
         Route::get('/import-jobs/{id}/result-file', [\App\Http\Controllers\DataExchange\ImportExecutionController::class, 'downloadResultFile'])
             ->middleware('permission:imports.read');
+
+        // D08: Export Datasets & Jobs - F10 & F11
+        Route::get('/export-datasets', [\App\Http\Controllers\DataExchange\ExportDatasetController::class, 'index'])
+            ->middleware('permission:exports.read');
+        Route::get('/export-datasets/{key}/columns', [\App\Http\Controllers\DataExchange\ExportDatasetController::class, 'columns'])
+            ->middleware('permission:exports.read');
+        Route::post('/export-jobs/preview', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'preview'])
+            ->middleware('permission:exports.create');
+        Route::post('/export-jobs', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'store'])
+            ->middleware('permission:exports.create');
+        Route::get('/export-jobs/{id}', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'show'])
+            ->middleware('permission:exports.read');
+        Route::post('/export-jobs/{id}/cancel', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'cancel'])
+            ->middleware('permission:exports.cancel');
+        Route::get('/export-jobs/{id}/download', [\App\Http\Controllers\DataExchange\ExportJobController::class, 'download'])
+            ->middleware('permission:exports.download');
+
+        // D09: Metric Registry - F01
+        Route::get('/report-metrics', [\App\Http\Controllers\Api\V1\Reports\ReportMetricController::class, 'index'])
+            ->middleware('permission:reports.definitions.read');
+        Route::get('/report-metrics/{metricCode}', [\App\Http\Controllers\Api\V1\Reports\ReportMetricController::class, 'show'])
+            ->middleware('permission:reports.definitions.read');
     });
 });

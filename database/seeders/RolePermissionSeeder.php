@@ -163,6 +163,20 @@ class RolePermissionSeeder extends Seeder
             ['key' => 'exports.cancel', 'module' => 'D08_DataExchange', 'label_bn' => 'এক্সপোর্ট বাতিলকরণ', 'label_en' => 'Cancel export jobs', 'display_order' => 88],
             ['key' => 'exports.download', 'module' => 'D08_DataExchange', 'label_bn' => 'ফাইল ডাউনলোড', 'label_en' => 'Download generated export files', 'display_order' => 89],
 
+            // D09: Reports, Analytics & Role-Based Dashboards
+            ['key' => 'dashboard.admin.read', 'module' => 'D09_Reports', 'label_bn' => 'প্রশাসনিক ড্যাশবোর্ড পরিদর্শন', 'label_en' => 'View administrator dashboard', 'display_order' => 90],
+            ['key' => 'dashboard.accounts.read', 'module' => 'D09_Reports', 'label_bn' => 'হিসাব শাখা ড্যাশবোর্ড পরিদর্শন', 'label_en' => 'View accounts dashboard', 'display_order' => 91],
+            ['key' => 'dashboard.staff.read', 'module' => 'D09_Reports', 'label_bn' => 'স্টাফ ড্যাশবোর্ড পরিদর্শন', 'label_en' => 'View staff dashboard', 'display_order' => 92],
+            ['key' => 'dashboard.preferences.read', 'module' => 'D09_Reports', 'label_bn' => 'ড্যাশবোর্ড পছন্দসমূহ দেখা', 'label_en' => 'Read dashboard preferences', 'display_order' => 93],
+            ['key' => 'dashboard.preferences.write', 'module' => 'D09_Reports', 'label_bn' => 'ড্যাশবোর্ড পছন্দসমূহ সংরক্ষণ', 'label_en' => 'Update dashboard preferences', 'display_order' => 94],
+            ['key' => 'reports.definitions.read', 'module' => 'D09_Reports', 'label_bn' => 'মেট্রিক সংজ্ঞা পরিদর্শন', 'label_en' => 'Read KPI metric definitions', 'display_order' => 95],
+            ['key' => 'reports.catalog.read', 'module' => 'D09_Reports', 'label_bn' => 'রিপোর্ট ক্যাটালগ ও ফিল্টার দেখা', 'label_en' => 'Read report catalog & filters', 'display_order' => 96],
+            ['key' => 'reports.query', 'module' => 'D09_Reports', 'label_bn' => 'রিপোর্ট কোয়েরি ও ড্রিলডাউন', 'label_en' => 'Execute report queries and drilldowns', 'display_order' => 97],
+            ['key' => 'reports.views.read', 'module' => 'D09_Reports', 'label_bn' => 'সংরক্ষিত রিপোর্ট ভিউ দেখা', 'label_en' => 'Read saved report views', 'display_order' => 98],
+            ['key' => 'reports.views.write', 'module' => 'D09_Reports', 'label_bn' => 'সংরক্ষিত রিপোর্ট ভিউ পরিচালনা', 'label_en' => 'Manage saved report views', 'display_order' => 99],
+            ['key' => 'reports.quality.read', 'module' => 'D09_Reports', 'label_bn' => 'ডাটা ফ্রেশনেস ও মান পরিদর্শন', 'label_en' => 'Read data freshness and quality', 'display_order' => 100],
+            ['key' => 'reports.audit.read', 'module' => 'D09_Reports', 'label_bn' => 'রিপোর্ট কোয়েরি অডিট পরিদর্শন', 'label_en' => 'Read report query audits', 'display_order' => 101],
+
             // D08-D09: Cash Payments & Expenses
             ['key' => 'payments.read', 'module' => 'D08_CashPayments', 'label_bn' => 'জমা রসিদ খতিয়ান দেখা', 'label_en' => 'View cash receipts register', 'display_order' => 38],
             ['key' => 'payments.post', 'module' => 'D08_CashPayments', 'label_bn' => 'নগদ জমা গ্রহণ (ক্যাশ কাউন্টার)', 'label_en' => 'Accept & post cash payments', 'display_order' => 39],
@@ -216,6 +230,9 @@ class RolePermissionSeeder extends Seeder
             'data_jobs.read', 'imports.templates.read', 'imports.create', 'imports.read',
             'imports.mapping.write', 'imports.validate', 'imports.review', 'imports.commit', 'imports.cancel',
             'exports.read', 'exports.create', 'exports.cancel', 'exports.download',
+            'dashboard.staff.read', 'dashboard.preferences.read', 'dashboard.preferences.write',
+            'reports.definitions.read', 'reports.catalog.read', 'reports.query',
+            'reports.views.read', 'reports.views.write', 'reports.quality.read',
         ];
 
         foreach ($staffPermissions as $permKey) {
@@ -241,6 +258,9 @@ class RolePermissionSeeder extends Seeder
             'payments.notifications.read', 'payments.notifications.retry',
             'payments.post', 'finance.reports.read',
             'data_jobs.read', 'exports.read', 'exports.create', 'exports.cancel', 'exports.download',
+            'dashboard.accounts.read', 'dashboard.preferences.read', 'dashboard.preferences.write',
+            'reports.definitions.read', 'reports.catalog.read', 'reports.query',
+            'reports.views.read', 'reports.views.write', 'reports.quality.read',
         ];
 
         foreach ($accountsPermissions as $permKey) {

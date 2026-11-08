@@ -112,6 +112,17 @@ return Application::configure(basePath: dirname(__DIR__))
             ], $e->httpStatus);
         });
 
+        $exceptions->render(function (\App\Exceptions\ReportDomainException $e, Request $request) {
+            return response()->json([
+                'error' => [
+                    'code' => $e->errorCode,
+                    'message' => $e->getMessage(),
+                    'details' => empty($e->details) ? (object) [] : $e->details,
+                    'request_id' => $request->attributes->get('request_id'),
+                ],
+            ], $e->httpStatus);
+        });
+
         $exceptions->render(function (ValidationException $e, Request $request) {
             return response()->json([
                 'error' => [
