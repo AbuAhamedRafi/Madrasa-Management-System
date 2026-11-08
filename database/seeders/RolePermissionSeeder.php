@@ -147,6 +147,22 @@ class RolePermissionSeeder extends Seeder
             ['key' => 'payments.notifications.read', 'module' => 'D07_CashCollection', 'label_bn' => 'অভিভাবক এসএমএস আউটবক্স দেখা', 'label_en' => 'Read guardian SMS outbox', 'display_order' => 74],
             ['key' => 'payments.notifications.retry', 'module' => 'D07_CashCollection', 'label_bn' => 'ব্যর্থ এসএমএস পুনরায় প্রেরণ', 'label_en' => 'Retry failed SMS notifications', 'display_order' => 75],
 
+            // D08: Data Exchange (Excel Import & Export Management)
+            ['key' => 'data_jobs.read', 'module' => 'D08_DataExchange', 'label_bn' => 'কাজের তালিকা ও ড্যাশবোর্ড দেখা', 'label_en' => 'View data exchange jobs and dashboard', 'display_order' => 76],
+            ['key' => 'data_jobs.audit.read', 'module' => 'D08_DataExchange', 'label_bn' => 'ডেটা কাজের অডিট লগ দেখা', 'label_en' => 'View data job audit events', 'display_order' => 77],
+            ['key' => 'imports.templates.read', 'module' => 'D08_DataExchange', 'label_bn' => 'ইমপোর্ট টেমপ্লেট ও স্কিমা পরিদর্শন', 'label_en' => 'Read import templates and schemas', 'display_order' => 78],
+            ['key' => 'imports.create', 'module' => 'D08_DataExchange', 'label_bn' => 'এক্সেল ফাইল আপলোড', 'label_en' => 'Upload import workbooks', 'display_order' => 79],
+            ['key' => 'imports.read', 'module' => 'D08_DataExchange', 'label_bn' => 'ইমপোর্ট বিবরণ ও প্রিভিউ দেখা', 'label_en' => 'Read import jobs, preview and rows', 'display_order' => 80],
+            ['key' => 'imports.mapping.write', 'module' => 'D08_DataExchange', 'label_bn' => 'কলাম ম্যাপিং সংরক্ষণ', 'label_en' => 'Save column mappings', 'display_order' => 81],
+            ['key' => 'imports.validate', 'module' => 'D08_DataExchange', 'label_bn' => 'ইমপোর্ট প্রিভিউ যাচাইকরণ', 'label_en' => 'Validate import preview', 'display_order' => 82],
+            ['key' => 'imports.review', 'module' => 'D08_DataExchange', 'label_bn' => 'ডুপ্লিকেট ও অমিল সিদ্ধান্ত জমা', 'label_en' => 'Submit duplicate resolution decisions', 'display_order' => 83],
+            ['key' => 'imports.commit', 'module' => 'D08_DataExchange', 'label_bn' => 'ইমপোর্ট কার্যকর ও পুনরায় চেষ্টা', 'label_en' => 'Commit import preview and retry failed rows', 'display_order' => 84],
+            ['key' => 'imports.cancel', 'module' => 'D08_DataExchange', 'label_bn' => 'ইমপোর্ট কাজ বাতিলকরণ', 'label_en' => 'Cancel import job', 'display_order' => 85],
+            ['key' => 'exports.read', 'module' => 'D08_DataExchange', 'label_bn' => 'এক্সপোর্ট ডেটাসেট ও কাজের অবস্থা দেখা', 'label_en' => 'Read export datasets and job status', 'display_order' => 86],
+            ['key' => 'exports.create', 'module' => 'D08_DataExchange', 'label_bn' => 'এক্সপোর্ট তৈরি ও প্রিভিউ', 'label_en' => 'Create export jobs and preview', 'display_order' => 87],
+            ['key' => 'exports.cancel', 'module' => 'D08_DataExchange', 'label_bn' => 'এক্সপোর্ট বাতিলকরণ', 'label_en' => 'Cancel export jobs', 'display_order' => 88],
+            ['key' => 'exports.download', 'module' => 'D08_DataExchange', 'label_bn' => 'ফাইল ডাউনলোড', 'label_en' => 'Download generated export files', 'display_order' => 89],
+
             // D08-D09: Cash Payments & Expenses
             ['key' => 'payments.read', 'module' => 'D08_CashPayments', 'label_bn' => 'জমা রসিদ খতিয়ান দেখা', 'label_en' => 'View cash receipts register', 'display_order' => 38],
             ['key' => 'payments.post', 'module' => 'D08_CashPayments', 'label_bn' => 'নগদ জমা গ্রহণ (ক্যাশ কাউন্টার)', 'label_en' => 'Accept & post cash payments', 'display_order' => 39],
@@ -197,6 +213,9 @@ class RolePermissionSeeder extends Seeder
             'billing.installments.read', 'billing.adjustments.read', 'billing.adjustments.request',
             'payment_slips.issue',
             'payments.slips.read', 'payments.slips.create',
+            'data_jobs.read', 'imports.templates.read', 'imports.create', 'imports.read',
+            'imports.mapping.write', 'imports.validate', 'imports.review', 'imports.commit', 'imports.cancel',
+            'exports.read', 'exports.create', 'exports.cancel', 'exports.download',
         ];
 
         foreach ($staffPermissions as $permKey) {
@@ -221,6 +240,7 @@ class RolePermissionSeeder extends Seeder
             'payments.reversals.read', 'payments.reversals.request',
             'payments.notifications.read', 'payments.notifications.retry',
             'payments.post', 'finance.reports.read',
+            'data_jobs.read', 'exports.read', 'exports.create', 'exports.cancel', 'exports.download',
         ];
 
         foreach ($accountsPermissions as $permKey) {

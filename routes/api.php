@@ -502,5 +502,43 @@ Route::middleware(['auth:sanctum', 'active', 'locale'])->group(function () {
         Route::post('/payment-notifications/{notification}/retry', [\App\Http\Controllers\Payments\PaymentNotificationController::class, 'retry'])
             ->whereNumber('notification')
             ->middleware('permission:payments.notifications.retry');
+
+        // D08: Data Exchange (Excel Import & Export Management) - F01 & F09
+        Route::get('/data-jobs/summary', [\App\Http\Controllers\DataExchange\DataJobController::class, 'summary'])
+            ->middleware('permission:data_jobs.read');
+        Route::get('/data-jobs/audit', [\App\Http\Controllers\DataExchange\DataJobController::class, 'audit'])
+            ->middleware('permission:data_jobs.audit.read');
+        Route::get('/data-jobs', [\App\Http\Controllers\DataExchange\DataJobController::class, 'index'])
+            ->middleware('permission:data_jobs.read');
+        Route::get('/data-jobs/{id}', [\App\Http\Controllers\DataExchange\DataJobController::class, 'show'])
+            ->middleware('permission:data_jobs.read');
+        Route::get('/data-jobs/{id}/events', [\App\Http\Controllers\DataExchange\DataJobController::class, 'events'])
+            ->middleware('permission:data_jobs.read');
+
+        // D08: Import Templates - F02
+        Route::get('/import-templates', [\App\Http\Controllers\DataExchange\ImportTemplateController::class, 'index'])
+            ->middleware('permission:imports.templates.read');
+        Route::get('/import-templates/{type}/download', [\App\Http\Controllers\DataExchange\ImportTemplateController::class, 'download'])
+            ->middleware('permission:imports.templates.read');
+        Route::get('/import-templates/{type}/schema', [\App\Http\Controllers\DataExchange\ImportTemplateController::class, 'schema'])
+            ->middleware('permission:imports.templates.read');
+
+        // D08: Import Jobs - F03
+        Route::post('/import-jobs', [\App\Http\Controllers\DataExchange\ImportJobController::class, 'store'])
+            ->middleware('permission:imports.create');
+        Route::get('/import-jobs/{id}', [\App\Http\Controllers\DataExchange\ImportJobController::class, 'show'])
+            ->middleware('permission:imports.read');
+
+        // D08: Import Column Mapping & Preview - F04
+        Route::get('/import-jobs/{id}/columns', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'columns'])
+            ->middleware('permission:imports.read');
+        Route::post('/import-jobs/{id}/mapping', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'saveMapping'])
+            ->middleware('permission:imports.mapping.write');
+        Route::post('/import-jobs/{id}/validate', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'validateJob'])
+            ->middleware('permission:imports.validate');
+        Route::get('/import-jobs/{id}/preview', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'preview'])
+            ->middleware('permission:imports.read');
+        Route::get('/import-jobs/{id}/rows', [\App\Http\Controllers\DataExchange\ImportMappingController::class, 'rows'])
+            ->middleware('permission:imports.read');
     });
 });
